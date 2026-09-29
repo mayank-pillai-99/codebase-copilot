@@ -4,6 +4,7 @@ import { loginRequestSchema, registerRequestSchema } from '@codebase-copilot/sha
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { LogoMark } from './logo';
 
 type Mode = 'login' | 'register';
 type FieldErrors = Partial<Record<'email' | 'password', string>>;
@@ -70,8 +71,9 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
+    <div className="card mx-auto w-full max-w-sm animate-fade-up p-6 shadow-xl shadow-zinc-900/5 sm:p-8 dark:shadow-black/30">
+      <LogoMark className="size-8" />
+      <h1 className="mt-5 text-2xl font-semibold tracking-tight">{copy.title}</h1>
 
       <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-5">
         <Field
@@ -99,21 +101,20 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
+        <button type="submit" disabled={pending} className="btn-primary py-2.5">
+          {pending && (
+            <span
+              aria-hidden
+              className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+            />
+          )}
           {pending ? copy.pending : copy.submit}
         </button>
       </form>
 
       <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
         {copy.switchPrompt}{' '}
-        <Link
-          href={`${copy.switchHref}?next=${encodeURIComponent(next)}`}
-          className="font-medium text-zinc-900 underline underline-offset-4 dark:text-zinc-100"
-        >
+        <Link href={`${copy.switchHref}?next=${encodeURIComponent(next)}`} className="link-accent">
           {copy.switchLabel}
         </Link>
       </p>
@@ -155,7 +156,7 @@ function Field(props: {
         required
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800"
+        className="input"
       />
       {error ? (
         <p id={`${name}-error`} className="text-sm text-red-700 dark:text-red-400">

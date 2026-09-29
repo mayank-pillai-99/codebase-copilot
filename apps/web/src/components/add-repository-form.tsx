@@ -60,13 +60,9 @@ export function AddRepositoryForm() {
           placeholder="https://github.com/owner/repo"
           aria-invalid={error ? true : undefined}
           aria-describedby="url-help"
-          className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800"
+          className="input min-w-0 flex-1 font-mono"
         />
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
+        <button type="submit" disabled={pending} className="btn-primary">
           {pending ? 'Adding…' : 'Analyze repository'}
         </button>
       </div>

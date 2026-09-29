@@ -11,7 +11,7 @@ export default async function RegisterPage(props: PageProps<'/register'>) {
   if (await getCurrentUser()) redirect(next);
 
   return (
-    <main className="px-4 py-16 sm:py-24">
+    <main className="dot-grid flex min-h-[calc(100vh-3.5rem)] items-start justify-center px-4 py-16 sm:py-24">
       <AuthForm mode="register" next={next} />
     </main>
   );
