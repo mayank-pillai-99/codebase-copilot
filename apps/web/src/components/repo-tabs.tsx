@@ -9,6 +9,7 @@ export function RepoTabs({ snapshotId }: { snapshotId: string }) {
   const tabs = [
     { href: base, label: 'Overview' },
     { href: `${base}/code`, label: 'Code' },
+    { href: `${base}/chat`, label: 'Chat' },
   ];
 
   return (
