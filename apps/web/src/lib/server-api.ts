@@ -4,7 +4,10 @@ import { cookies } from 'next/headers';
 import type { z } from 'zod';
 import { API_URL } from './config';
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  /** unreachable: the API didn't answer at all (e.g. a free-tier host still waking up). */
+  | { ok: false; status: number; error: string; unreachable?: boolean };
 
 /**
  * Calls the API from a server component with the visitor's session cookie and
@@ -31,6 +34,11 @@ export async function serverApi<T>(path: string, schema: z.ZodType<T>): Promise<
       ? { ok: true, data: parsed.data }
       : { ok: false, status: 502, error: 'Unexpected response from the server.' };
   } catch {
-    return { ok: false, status: 503, error: 'The server is not reachable right now.' };
+    return {
+      ok: false,
+      status: 503,
+      error: 'The server is not reachable right now.',
+      unreachable: true,
+    };
   }
 }
