@@ -1,0 +1,25 @@
+{
+  "version": "v1",
+  "repos": [
+    {
+      "repo": "gothinkster/node-express-realworld-example-app",
+      "sha": "30b68e1e881462b2f4164ea09ab4c4f5699c7b0b",
+      "description": "Small Express + Prisma REST API in TypeScript (RealWorld spec)"
+    },
+    {
+      "repo": "expressjs/express",
+      "sha": "7ef98448f8b38099ab1ded55e458538ad47a51e7",
+      "description": "Web framework library in CommonJS JavaScript, with many examples"
+    },
+    {
+      "repo": "axios/axios",
+      "sha": "2426e03ba9020be31ed013873423cea6b7cd2e67",
+      "description": "Mid-size HTTP client library (ES modules) for browsers and Node"
+    },
+    {
+      "repo": "shadcn-ui/taxonomy",
+      "sha": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+      "description": "Next.js App Router app with NextAuth, Prisma, Stripe and MDX content"
+    }
+  ]
+}
