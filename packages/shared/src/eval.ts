@@ -53,6 +53,17 @@ export const evalRunSchema = z.object({
     repos: z.array(z.object({ repo: z.string(), sha: z.string(), description: z.string() })),
     questions: z.number().int().positive(),
     questionSources: z.object({ human: z.number().int(), llmDrafted: z.number().int() }),
+    /** How a person checked the LLM-drafted questions (null on draft runs). */
+    review: z
+      .object({
+        method: z.literal('random-sample'),
+        seed: z.number().int(),
+        sampled: z.number().int(),
+        kept: z.number().int(),
+        edited: z.number().int(),
+        dropped: z.number().int(),
+      })
+      .nullable(),
     /** Git commit of the code that produced the run ("-dirty" if uncommitted changes). */
     codeVersion: z.string(),
   }),

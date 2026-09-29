@@ -25,6 +25,24 @@ const manifestSchema = z.object({
       }),
     )
     .min(1),
+  /**
+   * The human check of LLM-drafted questions: a seeded random sample, and what the
+   * reviewer did with it. Absent until the check is done; runs can't be published
+   * without it.
+   */
+  review: z
+    .object({
+      method: z.literal('random-sample'),
+      seed: z.number().int(),
+      sampled: z.number().int().positive(),
+      kept: z.number().int().nonnegative(),
+      edited: z.number().int().nonnegative(),
+      dropped: z.number().int().nonnegative(),
+    })
+    .refine((r) => r.kept + r.edited + r.dropped === r.sampled, {
+      message: 'kept + edited + dropped must equal sampled',
+    })
+    .optional(),
 });
 
 export const questionSchema = z.object({
@@ -34,8 +52,9 @@ export const questionSchema = z.object({
   question: z.string().min(8),
   /** Paths (at the pinned commit) of the files that answer the question. */
   gold: z.array(z.string().min(1)).min(1),
-  /** Who wrote the question. LLM drafts only count once a person has reviewed them. */
+  /** Who wrote the question. */
   source: z.enum(['human', 'llm-drafted']),
+  /** A person checked this question (in the review sample, or wrote it). */
   reviewed: z.boolean(),
   note: z.string().optional(),
 });
@@ -47,6 +66,7 @@ export interface EvalDataset {
   /** Manifest version plus a hash of the questions, so any edit is visible in results. */
   version: string;
   repos: RepoManifest['repos'];
+  review: RepoManifest['review'] | null;
   questions: EvalQuestion[];
 }
 
@@ -98,5 +118,10 @@ export function parseDataset(manifestText: string, questionsText: string): EvalD
   if (questions.length === 0) throw new DatasetError('questions.jsonl has no questions');
 
   const hash = createHash('sha256').update(questionsText).digest('hex').slice(0, 8);
-  return { version: `${manifest.version}+${hash}`, repos: manifest.repos, questions };
+  return {
+    version: `${manifest.version}+${hash}`,
+    repos: manifest.repos,
+    review: manifest.review ?? null,
+    questions,
+  };
 }

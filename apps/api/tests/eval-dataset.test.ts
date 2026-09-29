@@ -45,6 +45,17 @@ describe('parseDataset', () => {
     expect(() => parseDataset(manifest, lines)).toThrow(message);
   });
 
+  it('reads the review record and checks that it adds up', () => {
+    const withReview = (review: Record<string, unknown>) =>
+      JSON.stringify({ ...JSON.parse(manifest), review });
+    const review = { method: 'random-sample', seed: 7, sampled: 3, kept: 1, edited: 1, dropped: 1 };
+    expect(parseDataset(withReview(review), question()).review).toEqual(review);
+    expect(parseDataset(manifest, question()).review).toBeNull();
+    expect(() => parseDataset(withReview({ ...review, kept: 2 }), question())).toThrow(
+      /must equal sampled/,
+    );
+  });
+
   it('requires pinned full SHAs', () => {
     const unpinned = JSON.stringify({
       version: 'v1',

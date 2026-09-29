@@ -178,9 +178,7 @@ function Results({ run }: { run: EvalRun }) {
             along the call graph; this is what chat uses.
           </li>
           <li>
-            Questions: {config.questionSources.human} written by a person and{' '}
-            {config.questionSources.llmDrafted} drafted by an LLM, then reviewed by a person before
-            inclusion. The questions and answer files are{' '}
+            <QuestionProvenance config={config} /> The questions and answer files are{' '}
             <a
               href={DATASET_URL}
               className="font-medium text-sky-700 hover:underline dark:text-sky-400"
@@ -197,6 +195,30 @@ function Results({ run }: { run: EvalRun }) {
       </Section>
     </>
   );
+}
+
+/** Who wrote the questions and how much of that was checked by a person. */
+function QuestionProvenance({ config }: { config: EvalRun['config'] }) {
+  const { human, llmDrafted } = config.questionSources;
+  const { review } = config;
+  const written =
+    human > 0
+      ? `${human} questions were written by a person and ${llmDrafted} drafted by an LLM from the code.`
+      : `All ${llmDrafted} questions were drafted by an LLM from the code.`;
+  if (!review) return <>{written} They have not been checked by a person.</>;
+  const fixed = review.edited + review.dropped;
+  return (
+    <>
+      {written} A person checked a random sample of {review.sampled} drafted questions against the
+      code: {review.kept} were correct as written, {review.edited} needed edits to the question or
+      its answer files, and {review.dropped} were dropped ({percentOf(fixed, review.sampled)} needed
+      a fix). The rest were not individually checked.
+    </>
+  );
+}
+
+function percentOf(part: number, total: number): string {
+  return `${Math.round((part / total) * 100)}%`;
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

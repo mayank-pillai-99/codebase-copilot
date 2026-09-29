@@ -18,12 +18,14 @@ import { loadDataset, type EvalDataset } from './dataset';
 import { createPrimedEmbedder, findMissingGold, runEval, type EvalTarget } from './runner';
 
 /**
- * Retrieval evaluation (SPEC §8): npm run eval [-- --include-unreviewed] [-- --k 20]
+ * Retrieval evaluation (SPEC §8): npm run eval [-- --draft] [-- --k 20]
  *
  * Indexes each pinned repository into the local database if needed, runs every
- * retriever on every reviewed question, then writes eval/results/<date>-<id>.json and
- * an eval_runs row. Runs over unreviewed drafts go to eval/drafts/ (gitignored) and
- * never reach the database, so they can't be published by accident.
+ * retriever on every question, then writes eval/results/<date>-<id>.json and an
+ * eval_runs row. With --draft (for trying out changes) the run goes to eval/drafts/
+ * (gitignored) and never reaches the database, so it can't be published by accident.
+ * How the questions were written and checked is recorded with every run and shown
+ * on /eval.
  */
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
@@ -33,26 +35,21 @@ async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
       dataset: { type: 'string', default: join(ROOT, 'eval/datasets/v1') },
-      'include-unreviewed': { type: 'boolean', default: false },
+      draft: { type: 'boolean', default: false },
       k: { type: 'string', default: '20' },
     },
   });
   const k = Number(values.k);
   if (!Number.isInteger(k) || k < 10 || k > 50) throw new Error('--k must be between 10 and 50');
-  const draft = values['include-unreviewed'];
+  const draft = values.draft;
 
   const env = parseEnv();
   if (!env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is required: vector and hybrid retrieval need embeddings.');
   }
   const dataset = await loadDataset(values.dataset);
-  const questions = dataset.questions.filter((q) => draft || q.reviewed);
-  if (questions.length === 0) {
-    throw new Error(
-      'No reviewed questions. Review the dataset first, or pass --include-unreviewed for a draft run.',
-    );
-  }
-  log(`Dataset ${dataset.version}: ${questions.length} of ${dataset.questions.length} questions`);
+  const questions = dataset.questions;
+  log(`Dataset ${dataset.version}: ${questions.length} questions`);
 
   const prisma = createPrisma(env.DATABASE_URL);
   try {
@@ -109,6 +106,7 @@ async function main(): Promise<void> {
           human: questions.filter((q) => q.source === 'human').length,
           llmDrafted: questions.filter((q) => q.source === 'llm-drafted').length,
         },
+        review: dataset.review,
         codeVersion: codeVersion(),
       },
       metrics: { retrievers: report.retrievers, queryEmbeddingMs: embedder.latency() },

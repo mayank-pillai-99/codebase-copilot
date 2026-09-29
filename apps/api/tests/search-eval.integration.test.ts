@@ -127,7 +127,8 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('evaluation results (int
         embeddingModel: 'test',
         repos: [{ repo: 'acme/api', sha: 'a'.repeat(40), description: 'x' }],
         questions: 1,
-        questionSources: { human: 1, llmDrafted: 0 },
+        questionSources: { human: 0, llmDrafted: 1 },
+        review: { method: 'random-sample', seed: 1, sampled: 1, kept: 1, edited: 0, dropped: 0 },
         codeVersion: 'abc1234',
       },
       metrics: {
