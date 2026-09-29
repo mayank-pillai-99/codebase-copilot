@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { codeHref, describeSkipped, isSupportingPath } from '@/lib/format';
 import { CountUp } from './count-up';
+import { MethodBadge } from './method-badge';
 import { StatusBadge } from './status-badge';
 
 const POLL_MS = 1_500;
@@ -327,8 +328,13 @@ function RouteTable({ routes, snapshot }: { routes: RouteSummary[]; snapshot: Sn
         </thead>
         <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
           {routes.map((route) => (
-            <tr key={route.id}>
-              <td className="px-3 py-2 font-mono text-xs font-semibold">{route.method}</td>
+            <tr
+              key={route.id}
+              className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
+            >
+              <td className="px-3 py-2">
+                <MethodBadge method={route.method} />
+              </td>
               <td className="px-3 py-2 font-mono text-xs">{route.path}</td>
               <td className="px-3 py-2 font-mono text-xs">
                 {route.handler ? (

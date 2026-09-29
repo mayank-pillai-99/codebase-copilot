@@ -25,6 +25,11 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-24 px-4 pt-12 pb-8 sm:pt-20">
+      {/* A soft glow behind the hero: full-width radial gradients that fade out on their own. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[46rem] bg-[radial-gradient(38rem_24rem_at_78%_38%,color-mix(in_oklab,var(--color-brand-300)_30%,transparent),transparent_70%),radial-gradient(22rem_16rem_at_52%_62%,color-mix(in_oklab,var(--color-violet-300)_16%,transparent),transparent_70%)] dark:bg-[radial-gradient(38rem_24rem_at_78%_38%,color-mix(in_oklab,var(--color-brand-600)_16%,transparent),transparent_70%),radial-gradient(22rem_16rem_at_52%_62%,color-mix(in_oklab,var(--color-violet-600)_10%,transparent),transparent_70%)]"
+      />
       <section className="grid items-center gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12">
         <div className="flex flex-col gap-6">
           <p

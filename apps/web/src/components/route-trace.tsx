@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { codeHref, isSupportingPath } from '@/lib/format';
 import { planTrace } from '@/lib/trace-tree';
+import { MethodBadge } from './method-badge';
 
 type TraceState =
   | { status: 'idle' }
@@ -127,13 +128,13 @@ function RouteList({
             type="button"
             onClick={() => onSelect(route.id)}
             aria-current={route.id === selected ? 'true' : undefined}
-            className={`flex w-full min-w-0 items-baseline gap-2 rounded-md px-2 py-1.5 text-left font-mono text-xs ${
+            className={`flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left font-mono text-xs transition-colors ${
               route.id === selected
-                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                ? 'bg-brand-50 text-brand-950 ring-1 ring-brand-200 dark:bg-brand-950 dark:text-brand-100 dark:ring-brand-800'
                 : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
             }`}
           >
-            <span className="w-14 shrink-0 font-semibold">{route.method}</span>
+            <MethodBadge method={route.method} />
             <span className="truncate">{route.path}</span>
           </button>
         </li>
@@ -152,7 +153,10 @@ function TraceView({ snapshotId, trace }: { snapshotId: string; trace: TraceResp
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-mono text-sm font-semibold">
-          {trace.route.method} {trace.route.path}
+          <span className="flex items-center gap-2">
+            <MethodBadge method={trace.route.method} />
+            {trace.route.path}
+          </span>
         </h2>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Registered in{' '}

@@ -23,11 +23,15 @@
 
   --ease-out-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
 
-  --animate-fade-up: fade-up 0.55s var(--ease-out-soft) both;
-  --animate-fade-in: fade-in 0.35s ease-out both;
-  --animate-pop: pop 0.4s var(--ease-out-soft) both;
+  /*
+   * Entrances fill "backwards" (not "both"): they end at the element's normal state, and
+   * a lingering fill would keep the element a stacking context / containing block.
+   */
+  --animate-fade-up: fade-up 0.55s var(--ease-out-soft) backwards;
+  --animate-fade-in: fade-in 0.35s ease-out backwards;
+  --animate-pop: pop 0.4s var(--ease-out-soft) backwards;
   --animate-shimmer: shimmer 1.4s linear infinite;
-  --animate-draw: draw 1.1s var(--ease-out-soft) both;
+  --animate-draw: draw 1.1s var(--ease-out-soft) backwards;
   --animate-caret: caret 1s steps(2, start) infinite;
   --animate-travel: travel 2.8s ease-in-out infinite;
   --animate-ping-slow: ping-slow 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
