@@ -2,6 +2,8 @@
 
 **Paste a GitHub URL, get an onboarding guide to that codebase, grounded in the actual code.**
 
+**Live demo: https://codebase-copilot-mu.vercel.app.** Try the demo repositories without an account. It runs on free hosting, so the first visit after a quiet period can take up to a minute to wake the server.
+
 > 🚧 **Status: in development.** Working today: add a public GitHub repository and it's indexed into a code graph and a hybrid search index; browse the code with syntax highlighting; ask questions in a streaming chat whose citations link to the exact lines. Demo repositories can be explored without an account. The architecture map, request tracing, issue locator, onboarding guide and evaluation page are planned. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## What it will do
