@@ -6,7 +6,7 @@ Codebase Copilot: paste a GitHub URL, get an onboarding guide to that codebase, 
 
 ## Current status
 
-Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Next: Milestone 5 (evaluation harness). See `docs/SPEC.md` §21.
+Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Milestone 5 (retrieval evaluation, ADR 0005) is in progress: dataset, runner, `/eval` page, search endpoint. Next: Milestone 6 (agentic retriever). See `docs/SPEC.md` §21.
 
 ## Stack
 
@@ -29,6 +29,7 @@ npm run dev                 # API :4000, indexing worker, web :3000 (or dev:api 
 npm run lint && npm run format:check && npm run typecheck
 npm test                    # unit tests; add RUN_INTEGRATION=1 with DATABASE_URL/REDIS_URL set for integration
 npm run build
+GITHUB_TOKEN=$(gh auth token) npm run eval   # retrieval evaluation (eval/README.md); -- --draft for a trial run
 docker compose --profile app up --build   # whole stack in containers
 ```
 
@@ -42,9 +43,10 @@ docker compose --profile app up --build   # whole stack in containers
 - Indexing lives in `apps/api/src/indexing/`: `tarball.ts` (in-memory extraction and limits) → `parser.ts` (tree-sitter) → `routes.ts` → `modules.ts` (import resolution) → `graph.ts` (links calls and handlers) → `persist.ts`, orchestrated by `indexer.ts`. Test repos are built in memory with `tests/support/tar.ts` and `fixture-repo.ts`.
 - Integration tests: `RUN_INTEGRATION=1` with `DATABASE_URL` and `REDIS_URL` set. They use unique names and clean up after themselves.
 - Migrations: `prisma migrate dev --create-only` always adds `DROP INDEX "chunks_embedding_hnsw_idx"`, because Prisma can't declare HNSW. **Delete that line** before applying (use `prisma migrate deploy` in non-interactive shells). `npm run db:check-drift --workspace @codebase-copilot/api` (in CI) catches anything else.
-- Retrieval and chat: `src/retrieval/` (vector, fulltext and hybrid, all behind the `Retriever` interface), `src/chat/` (prompt, citation checks, service), `src/llm/` (Gemini embeddings as a LangChain `Embeddings`, chat through LangChain). Tests use `hashingEmbedder()` and scripted chat models, never the network.
+- Retrieval and chat: `src/retrieval/` (vector, fulltext and hybrid, all behind the `Retriever` interface), `src/chat/` (prompt, citation checks, service), `src/llm/` (Gemini embeddings as a LangChain `Embeddings`; chat through `GeminiChat`, our LangChain `BaseChatModel` over the REST API). Tests use `hashingEmbedder()` and scripted chat models, never the network.
 - Access to snapshot data goes through `findVisibleSnapshot()` in `src/services/snapshot-access.ts`: tracked by the viewer, or listed in `DEMO_REPOSITORIES`. Routes that demo visitors may use take `app.identify` (optional auth) and `viewerId(request)`.
 - Without `GEMINI_API_KEY`, indexing still works (full-text search only) and chat answers 503.
+- Evaluation: runner in `src/eval/` (`metrics.ts`, `dataset.ts`, `runner.ts`, `cli.ts`), datasets in `eval/datasets/`, committed runs in `eval/results/` (imported into `eval_runs` at API startup; `/eval` shows the latest). The free Gemini tier rate-limits bulk embedding, so the runner embeds with `embedMissingChunks` (resumable). Never hand-edit result files or tune retrievers on individual questions.
 - Without `GITHUB_TOKEN`, GitHub allows 60 API requests/hour per IP. For local testing, pass one in the environment rather than writing it to `.env`, e.g. `GITHUB_TOKEN=$(gh auth token) npm run dev`.
 
 ## Hard rules

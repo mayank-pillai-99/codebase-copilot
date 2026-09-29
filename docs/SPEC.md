@@ -298,7 +298,8 @@ Per answer (on a subset):
 
 ### 8.3 Runner and reporting
 
-- `eval/` contains a CLI runner that executes each retriever against the dataset and writes results to the `EvalRun` table and a JSON file.
+- A CLI runner (`npm run eval`, code in `apps/api/src/eval/`) executes each retriever against the dataset and writes results to the `EvalRun` table and a JSON file in `eval/results/`. Committed result files are imported by the API at startup, which is how they reach the deployed `/eval` page (ADR 0005).
+- Relevance is judged at file level: chunks collapse to the rank of each file's best chunk (ADR 0005).
 - The public **`/eval` page** shows the latest run: metrics table, per-question-type breakdown, dataset size, repo SHAs, date, and model names.
 
 ---
@@ -442,13 +443,13 @@ Built so far (✓) and planned. "public" means readable without a session for de
 ✓ POST   /api/snapshots/:id/chat               { message, sessionId? } → SSE      (public for demos)
 ✓ GET    /api/snapshots/:id/chat/sessions      the user's conversations
 ✓ GET    /api/chat/sessions/:sessionId         messages + validated citations
+✓ POST   /api/snapshots/:id/search             { query, retriever?, k? }          (public for demos)
+✓ GET    /api/eval/latest                      newest retrieval evaluation run   (public)
 
   GET    /api/snapshots/:id/guide              onboarding guide                   (Milestone 9)
   GET    /api/snapshots/:id/architecture       nodes + edges                      (Milestone 7)
   POST   /api/snapshots/:id/trace              { routeId } → SSE                  (Milestone 7)
-  POST   /api/snapshots/:id/search             { query, retriever? }              (Milestone 5)
   POST   /api/snapshots/:id/locate-issue       { issueUrl | title+body }          (Milestone 8)
-  GET    /api/eval/latest                                                          (Milestone 5)
 
 ✓ GET    /api/health                           dependency status (503 if degraded)
 ✓ GET    /api/health/live                      liveness for the hosting platform
