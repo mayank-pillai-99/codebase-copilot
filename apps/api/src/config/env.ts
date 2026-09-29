@@ -26,6 +26,8 @@ const envSchema = z.object({
   MAX_SOURCE_FILES: z.coerce.number().int().positive().default(2_000),
   MAX_FILE_KB: z.coerce.number().positive().default(200),
   MAX_TOTAL_SOURCE_MB: z.coerce.number().positive().default(30),
+  // Chunks are what gets embedded and stored with vectors (~3 KB each plus index).
+  MAX_CHUNKS: z.coerce.number().int().positive().default(8_000),
 
   // Google AI Studio key for embeddings and chat (ADR 0004). Empty = AI features off:
   // indexing still works, search falls back to full-text only.

@@ -29,6 +29,16 @@ export const snapshotStatsSchema = z.object({
   routes: z.number(),
   skipped: z.record(z.string(), z.number()),
   durationMs: z.number(),
+  // Added with search (Milestone 4); absent on snapshots indexed before it.
+  chunks: z.number().optional(),
+  embeddings: z
+    .object({
+      status: z.enum(['complete', 'disabled', 'failed']),
+      model: z.string().nullable(),
+      embedded: z.number(),
+      reason: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const snapshotSchema = z.object({

@@ -172,7 +172,14 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('repository service (int
       prisma,
       github: gh,
       getParser: createCodeParser,
-      limits: { maxArchiveBytes: 1e7, maxFileBytes: 2e5, maxTotalBytes: 1e7, maxCodeFiles: 100 },
+      embedder: null,
+      limits: {
+        maxArchiveBytes: 1e7,
+        maxFileBytes: 2e5,
+        maxTotalBytes: 1e7,
+        maxCodeFiles: 100,
+        maxChunks: 1_000,
+      },
       logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
     });
     await index(created.id, { isFinalAttempt: true });

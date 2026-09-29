@@ -207,13 +207,7 @@ function StatsGrid({ stats }: { stats: SnapshotStats }) {
       `${stats.calls.resolved.toLocaleString('en-US')} of ${stats.calls.total.toLocaleString('en-US')} call sites`,
     ],
     ['Routes', stats.routes.toLocaleString('en-US'), 'HTTP endpoints detected'],
-    [
-      'Indexed in',
-      `${(stats.durationMs / 1000).toFixed(1)} s`,
-      stats.filesWithParseErrors
-        ? `${stats.filesWithParseErrors} files had syntax errors`
-        : 'no syntax errors',
-    ],
+    ['Search index', stats.chunks?.toLocaleString('en-US') ?? '—', searchIndexDetail(stats)],
   ] as const;
   const skipped = describeSkipped(stats.skipped);
 
@@ -232,8 +226,12 @@ function StatsGrid({ stats }: { stats: SnapshotStats }) {
         ))}
       </dl>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Calls are linked by name through imports, not by type checking, so calls on local variables
-        and library calls stay unlinked. {skipped}
+        Indexed in {(stats.durationMs / 1000).toFixed(1)} s
+        {stats.filesWithParseErrors
+          ? ` (${stats.filesWithParseErrors} files had syntax errors)`
+          : ''}
+        . Calls are linked by name through imports, not by type checking, so calls on local
+        variables and library calls stay unlinked. {skipped}
       </p>
     </section>
   );
@@ -394,4 +392,12 @@ function RouteTable({
       </table>
     </div>
   );
+}
+
+function searchIndexDetail(stats: SnapshotStats): string {
+  const e = stats.embeddings;
+  if (!e) return 'indexed before search existed';
+  if (e.status === 'complete') return `chunks embedded with ${e.model}`;
+  if (e.status === 'disabled') return 'full-text search only (no AI key configured)';
+  return `full-text search only: ${e.reason ?? 'embedding failed'}`;
 }

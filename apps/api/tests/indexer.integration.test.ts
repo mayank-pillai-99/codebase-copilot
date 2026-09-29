@@ -1,21 +1,28 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { GitHubClient } from '../src/github/client';
-import { createIndexer, IndexingError, type Indexer } from '../src/indexing/indexer';
+import {
+  createIndexer,
+  IndexingError,
+  type ChunkEmbedder,
+  type Indexer,
+} from '../src/indexing/indexer';
 import { createCodeParser } from '../src/indexing/parser';
-import type { ExtractLimits } from '../src/indexing/tarball';
 import { AppError } from '../src/lib/errors';
 import { createPrisma, type PrismaClient } from '../src/lib/prisma';
+import { hashingEmbedder } from './support/fakes';
 import { fixtureEntries } from './support/fixture-repo';
+import { EmbeddingError } from '../src/llm/embeddings';
 import { makeTarball, toWebStream } from './support/tar';
 
 const { DATABASE_URL, RUN_INTEGRATION } = process.env;
 
-const limits: ExtractLimits = {
+const limits = {
   maxArchiveBytes: 10 * 1024 * 1024,
   maxFileBytes: 200 * 1024,
   maxTotalBytes: 10 * 1024 * 1024,
   maxCodeFiles: 100,
+  maxChunks: 1_000,
 };
 const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
 const SHA = 'c0ffee'.padEnd(40, '0');
@@ -43,7 +50,8 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('indexer (integration)',
 
   function indexerWith(
     downloadTarball: GitHubClient['downloadTarball'],
-    overrides: Partial<ExtractLimits> = {},
+    overrides: Partial<typeof limits> = {},
+    embedder: ChunkEmbedder | null = hashingEmbedder(),
   ): Indexer {
     const github: GitHubClient = {
       getRepository: async () => {
@@ -56,13 +64,15 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('indexer (integration)',
       prisma,
       github,
       getParser: createCodeParser,
+      embedder,
       limits: { ...limits, ...overrides },
       logger: silent,
+      embeddingBatchSize: 4,
     });
   }
 
-  const fixtureIndexer = (overrides?: Partial<ExtractLimits>) =>
-    indexerWith(async () => toWebStream(makeTarball(fixtureEntries())), overrides);
+  const fixtureIndexer = (overrides?: Partial<typeof limits>, embedder?: ChunkEmbedder | null) =>
+    indexerWith(async () => toWebStream(makeTarball(fixtureEntries())), overrides, embedder);
 
   it('indexes a repository into files, symbols, edges and routes', async () => {
     const snapshot = await newSnapshot();
@@ -194,6 +204,110 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('indexer (integration)',
     expect(await prisma.snapshot.findUniqueOrThrow({ where: { id: snapshot.id } })).toMatchObject({
       status: 'FAILED',
       failureReason: 'Indexing failed because of an unexpected error. Please try again.',
+    });
+  });
+
+  describe('chunks and embeddings', () => {
+    const embeddedCount = async (snapshotId: string) => {
+      const [row] = await prisma.$queryRaw<{ total: bigint; embedded: bigint }[]>`
+        SELECT count(*) AS total, count(embedding) AS embedded FROM chunks WHERE snapshot_id = ${snapshotId}::uuid
+      `;
+      return { total: Number(row!.total), embedded: Number(row!.embedded) };
+    };
+
+    it('stores chunks with embeddings and a searchable tsvector', async () => {
+      const snapshot = await newSnapshot();
+      await fixtureIndexer()(snapshot.id, { isFinalAttempt: true });
+
+      const saved = await prisma.snapshot.findUniqueOrThrow({ where: { id: snapshot.id } });
+      const counts = await embeddedCount(snapshot.id);
+      expect(counts.total).toBeGreaterThan(5);
+      expect(counts.embedded).toBe(counts.total);
+      expect(saved.stats).toMatchObject({
+        chunks: counts.total,
+        embeddings: { status: 'complete', model: 'test-hashing-768', embedded: counts.total },
+      });
+
+      const chunk = await prisma.chunk.findFirstOrThrow({
+        where: { snapshotId: snapshot.id, label: 'createPayment' },
+        include: { symbol: true },
+      });
+      expect(chunk).toMatchObject({
+        kind: 'symbol',
+        embeddingModel: 'test-hashing-768',
+        startLine: 4,
+      });
+      expect(chunk.symbol?.qualifiedName).toBe('createPayment');
+      expect(chunk.header).toContain('// imports used: ../services/payment.service');
+
+      // Split identifiers make word queries match camelCase names.
+      const hits = await prisma.$queryRaw<{ label: string | null }[]>`
+        SELECT label FROM chunks
+        WHERE snapshot_id = ${snapshot.id}::uuid AND tsv @@ to_tsquery('simple', 'create & payment')
+      `;
+      expect(hits.map((h) => h.label)).toContain('createPayment');
+    });
+
+    it('finishes with full-text search only when no embedder is configured', async () => {
+      const snapshot = await newSnapshot();
+      await fixtureIndexer({}, null)(snapshot.id, { isFinalAttempt: true });
+
+      const saved = await prisma.snapshot.findUniqueOrThrow({ where: { id: snapshot.id } });
+      expect(saved.status).toBe('READY');
+      expect(saved.stats).toMatchObject({ embeddings: { status: 'disabled', model: null } });
+      expect((await embeddedCount(snapshot.id)).embedded).toBe(0);
+    });
+
+    it('stays usable when the embedding service rejects the request', async () => {
+      const snapshot = await newSnapshot();
+      const rejecting: ChunkEmbedder = {
+        model: 'm',
+        embedDocuments: async () => {
+          throw new EmbeddingError('Embedding request failed (400): API key not valid.', false);
+        },
+      };
+      await fixtureIndexer({}, rejecting)(snapshot.id, { isFinalAttempt: false });
+
+      const saved = await prisma.snapshot.findUniqueOrThrow({ where: { id: snapshot.id } });
+      expect(saved.status).toBe('READY');
+      expect(saved.stats).toMatchObject({
+        embeddings: { status: 'failed', reason: expect.stringMatching(/check the API key/) },
+      });
+    });
+
+    it('retries later when rate-limited, and degrades on the final attempt', async () => {
+      const snapshot = await newSnapshot();
+      let calls = 0;
+      const limited: ChunkEmbedder = {
+        model: 'm',
+        embedDocuments: async (texts) => {
+          // First batch succeeds, then the quota runs out.
+          if (calls++ === 0) return hashingEmbedder().embedDocuments(texts);
+          throw new EmbeddingError('Embedding request failed (429): quota', true);
+        },
+      };
+
+      await expect(
+        fixtureIndexer({}, limited)(snapshot.id, { isFinalAttempt: false }),
+      ).rejects.toThrow(/429/);
+      expect((await prisma.snapshot.findUniqueOrThrow({ where: { id: snapshot.id } })).status).toBe(
+        'QUEUED',
+      );
+
+      calls = 0;
+      await fixtureIndexer({}, limited)(snapshot.id, { isFinalAttempt: true });
+      const saved = await prisma.snapshot.findUniqueOrThrow({ where: { id: snapshot.id } });
+      expect(saved.status).toBe('READY');
+      expect(saved.stats).toMatchObject({ embeddings: { status: 'failed', embedded: 4 } });
+      expect((await embeddedCount(snapshot.id)).embedded).toBe(4);
+    });
+
+    it('rejects repositories that produce too many chunks, before saving anything', async () => {
+      const snapshot = await newSnapshot();
+      await expect(
+        fixtureIndexer({ maxChunks: 3 })(snapshot.id, { isFinalAttempt: true }),
+      ).rejects.toThrow(/searchable chunks; the current limit is 3/);
+      expect(await prisma.file.count({ where: { snapshotId: snapshot.id } })).toBe(0);
     });
   });
 });

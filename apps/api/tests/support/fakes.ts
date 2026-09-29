@@ -27,3 +27,26 @@ export const fakeHasher: PasswordHasher = {
   hash: async (password) => `hashed:${password}`,
   verify: async (passwordHash, password) => passwordHash === `hashed:${password}`,
 };
+
+/**
+ * Deterministic stand-in for an embedding model: words are hashed into buckets
+ * (feature hashing), so texts sharing identifiers get similar vectors. Good enough
+ * to exercise storage and retrieval without network calls.
+ */
+export function hashingEmbedder(model = 'test-hashing-768') {
+  const embed = (text: string) => {
+    const vector = new Array<number>(768).fill(0);
+    for (const word of text.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+      let h = 2166136261;
+      for (const ch of word) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+      vector[Math.abs(h) % 768]! += 1;
+    }
+    const norm = Math.hypot(...vector) || 1;
+    return vector.map((v) => v / norm);
+  };
+  return {
+    model,
+    embedDocuments: async (texts: string[]) => texts.map(embed),
+    embedQuery: async (text: string) => embed(text),
+  };
+}
