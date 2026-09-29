@@ -87,6 +87,33 @@ describe('withFallbacks first-token deadline', () => {
     expect(slow.aborted()).toBe(true);
   });
 
+  it('does not leave an unhandled rejection when an abandoned model errors on abort', async () => {
+    // Real clients (LangChain/fetch) reject with an AbortError when aborted; that rejection
+    // must be handled, or Node crashes the whole API process.
+    const rejectsOnAbort: ChatModel = {
+      model: 'a',
+      async *stream(_messages, signal) {
+        await new Promise((_resolve, reject) =>
+          signal?.addEventListener('abort', () => reject(new Error('This operation was aborted'))),
+        );
+        yield 'never';
+      },
+    };
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const chat = withFallbacks([rejectsOnAbort, model('b', ['From b'])], {
+        firstTokenTimeoutMs: 20,
+      });
+      expect(await collect(chat)).toBe('From b');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('gives the last model no deadline', async () => {
     const lateAnswer: ChatModel = {
       model: 'b',

@@ -58,3 +58,9 @@ Measured with a real AI Studio key against the `gothinkster/node-express-realwor
 - sends SSE heartbeat comments every 10 s so no proxy closes a slow stream
 
 **Account issue seen during setup:** a key from one AI Studio project returned `403 PERMISSION_DENIED: "Your project has been denied access"` for every model call, although listing models worked. A key created in a _new project_ worked immediately. The app handles this state without crashing: indexing completes with full-text search only, and chat reports that the provider rejected the request.
+
+## Update: chat no longer uses LangChain's Gemini integration (2026-09-29)
+
+In production, `@langchain/google-genai` failed with `[GoogleGenerativeAI Error]: Failed to parse stream`. It's built on Google's **deprecated** `@google/generative-ai` SDK, which also left a promise unobserved, so the failure crashed the whole API process through an unhandled rejection.
+
+Chat now uses `GeminiChat`, our own LangChain `BaseChatModel` subclass over the REST `streamGenerateContent?alt=sse` endpoint. So chat still goes through LangChain's interface, as embeddings already did. It parses server-sent events itself: a CRLF split across network chunks broke our first version, and a byte-sliced test now covers it. It skips "thought" parts and reports errors with their HTTP status, so 503 overloads trigger the model fallback. Both entry points also log stray unhandled rejections instead of exiting, so one bad client can't take down in-flight requests and indexing jobs.

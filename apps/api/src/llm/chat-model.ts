@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { GeminiChat } from './gemini-chat';
 import type { PromptMessage } from '../chat/prompt';
 
 /** The narrow interface chat needs from an LLM, so providers (and test fakes) can swap. */
@@ -38,16 +38,20 @@ const MESSAGES: Record<ChatFailure, string> = {
 const DEFAULT_FIRST_TOKEN_TIMEOUT_MS = 15_000;
 
 /**
- * Gemini through LangChain's ChatGoogleGenerativeAI. Retries are off: an overloaded
- * model should hand over to a fallback within seconds rather than retry for a minute.
+ * Gemini through our LangChain chat model (see gemini-chat.ts for why it isn't
+ * LangChain's own Gemini integration). Retries are off: an overloaded model should
+ * hand over to a fallback within seconds rather than retry for a minute.
  */
-export function createGeminiChatModel(options: { apiKey: string; model: string }): ChatModel {
-  const llm = new ChatGoogleGenerativeAI({
+export function createGeminiChatModel(options: {
+  apiKey: string;
+  model: string;
+  fetch?: typeof fetch;
+}): ChatModel {
+  const llm = new GeminiChat({
     apiKey: options.apiKey,
     model: options.model,
-    temperature: 0.2,
-    maxOutputTokens: 2_048,
     maxRetries: 0,
+    ...(options.fetch && { fetch: options.fetch }),
   });
 
   return {
@@ -57,6 +61,7 @@ export function createGeminiChatModel(options: { apiKey: string; model: string }
       try {
         stream = await llm.stream(messages.map(toLangChain), { signal });
       } catch (err) {
+        if (signal?.aborted) return;
         throw classify(err);
       }
       try {
