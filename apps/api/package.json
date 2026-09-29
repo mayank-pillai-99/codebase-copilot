@@ -31,6 +31,9 @@
     "ioredis": "^6.0.0",
     "prisma": "7.10.0",
     "tar": "^7.5.22",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2",
+    "web-tree-sitter": "^0.27.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
