@@ -55,6 +55,7 @@ enum SnapshotStatus {
   QUEUED
   FETCHING
   PARSING
+  EMBEDDING
   READY
   FAILED
 }
@@ -84,6 +85,7 @@ model Snapshot {
   imports    ImportEdge[]
   calls      CallEdge[]
   routes     Route[]
+  chunks     Chunk[]
 
   @@unique([repositoryId, commitSha])
   @@map("snapshots")
@@ -116,6 +118,7 @@ model File {
   importedBy  ImportEdge[] @relation("ImportTo")
   calls       CallEdge[]
   routes      Route[]
+  chunks      Chunk[]
 
   @@unique([snapshotId, path])
   @@map("files")
@@ -151,6 +154,7 @@ model Symbol {
   callsOut      CallEdge[] @relation("CallFrom")
   callsIn       CallEdge[] @relation("CallTo")
   handlesRoutes Route[]
+  chunks        Chunk[]
 
   @@index([snapshotId, name])
   @@index([fileId])
@@ -226,4 +230,38 @@ model Route {
 
   @@index([snapshotId])
   @@map("routes")
+}
+
+/// A retrievable unit of code or docs: one symbol, a run of module-level code, or a
+/// markdown section. Written by the indexer; the vector and tsvector columns are
+/// read and written with raw SQL (SPEC §11).
+model Chunk {
+  id             String                      @id @db.Uuid
+  snapshotId     String                      @map("snapshot_id") @db.Uuid
+  fileId         String                      @map("file_id") @db.Uuid
+  symbolId       String?                     @map("symbol_id") @db.Uuid
+  /// symbol | module | doc
+  kind           String
+  /// e.g. PaymentService.charge, or a markdown heading for docs
+  label          String?
+  startLine      Int                         @map("start_line")
+  endLine        Int                         @map("end_line")
+  /// Context header (file, symbol, imports used) prepended to the code when embedding.
+  header         String
+  content        String
+  /// Content plus identifiers split into words (camelCase, snake_case, path segments).
+  searchText     String                      @map("search_text")
+  /// Generated from search_text in the migration: to_tsvector('simple', search_text).
+  tsv            Unsupported("tsvector")?    @default(dbgenerated("to_tsvector('simple'::regconfig, search_text)"))
+  embedding      Unsupported("vector(768)")?
+  embeddingModel String?                     @map("embedding_model")
+
+  snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  file     File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  symbol   Symbol?  @relation(fields: [symbolId], references: [id], onDelete: SetNull)
+
+  @@index([snapshotId])
+  @@index([fileId])
+  @@index([tsv], map: "chunks_tsv_idx", type: Gin)
+  @@map("chunks")
 }

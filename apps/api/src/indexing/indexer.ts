@@ -13,7 +13,7 @@ import {
   type ExtractResult,
 } from './tarball';
 
-export type IndexingStage = 'fetching' | 'parsing' | 'saving' | 'retrying';
+export type IndexingStage = 'fetching' | 'parsing' | 'saving' | 'embedding' | 'retrying';
 
 export interface SnapshotProgress {
   stage: IndexingStage;

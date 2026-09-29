@@ -1,9 +1,16 @@
 import { z } from 'zod';
 
-export const snapshotStatusSchema = z.enum(['QUEUED', 'FETCHING', 'PARSING', 'READY', 'FAILED']);
+export const snapshotStatusSchema = z.enum([
+  'QUEUED',
+  'FETCHING',
+  'PARSING',
+  'EMBEDDING',
+  'READY',
+  'FAILED',
+]);
 
 export const snapshotProgressSchema = z.object({
-  stage: z.enum(['fetching', 'parsing', 'saving', 'retrying']),
+  stage: z.enum(['fetching', 'parsing', 'saving', 'embedding', 'retrying']),
   processed: z.number().int().nonnegative().optional(),
   total: z.number().int().nonnegative().optional(),
 });

@@ -86,6 +86,7 @@ const STEPS = [
   ['QUEUED', 'Queued'],
   ['FETCHING', 'Downloading the repository'],
   ['PARSING', 'Parsing and linking code'],
+  ['EMBEDDING', 'Embedding code for search'],
   ['READY', 'Ready'],
 ] as const;
 
@@ -93,7 +94,7 @@ function ProgressPanel({ snapshot }: { snapshot: SnapshotDto }) {
   const current = STEPS.findIndex(([status]) => status === snapshot.status);
   const { progress } = snapshot;
   const fraction =
-    progress?.stage === 'parsing' && progress.total
+    (progress?.stage === 'parsing' || progress?.stage === 'embedding') && progress.total
       ? (progress.processed ?? 0) / progress.total
       : null;
 
@@ -133,7 +134,8 @@ function ProgressPanel({ snapshot }: { snapshot: SnapshotDto }) {
           </div>
           <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
             {progress?.processed?.toLocaleString('en-US')} of{' '}
-            {progress?.total?.toLocaleString('en-US')} files
+            {progress?.total?.toLocaleString('en-US')}{' '}
+            {progress?.stage === 'embedding' ? 'chunks' : 'files'}
           </p>
         </div>
       )}

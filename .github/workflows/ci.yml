@@ -50,5 +50,6 @@ jobs:
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm run db:deploy --workspace @codebase-copilot/api
+      - run: npm run db:check-drift --workspace @codebase-copilot/api
       - run: npm test
       - run: npm run build
