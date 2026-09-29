@@ -209,14 +209,7 @@ export function createIndexer(deps: IndexerDeps): Indexer {
     try {
       for (let i = 0; i < chunks.length; i += batchSize) {
         const batch = chunks.slice(i, i + batchSize);
-        const vectors = await embedder.embedDocuments(
-          batch.map((c) =>
-            GeminiEmbeddings.formatDocument(
-              c.label ? `${c.path} · ${c.label}` : c.path,
-              `${c.header}\n${c.content}`,
-            ),
-          ),
-        );
+        const vectors = await embedder.embedDocuments(batch.map(embeddingInput));
         await saveEmbeddings(prisma, ids.slice(i, i + batchSize), vectors, embedder.model);
         embedded += batch.length;
         await setProgress(snapshotId, {
@@ -250,6 +243,85 @@ export function createIndexer(deps: IndexerDeps): Indexer {
       data: { status: 'FAILED', failureReason, progress: Prisma.DbNull },
     });
   }
+}
+
+/** The text embedded for a chunk: its location as the title, then header and code. */
+function embeddingInput(c: {
+  path: string;
+  label: string | null;
+  header: string;
+  content: string;
+}) {
+  return GeminiEmbeddings.formatDocument(
+    c.label ? `${c.path} · ${c.label}` : c.path,
+    `${c.header}\n${c.content}`,
+  );
+}
+
+/**
+ * Embeds the chunks of a snapshot that have no vector from `embedder.model` yet,
+ * saving batch by batch, so a run cut short by rate limits resumes where it stopped
+ * instead of starting over. Marks the snapshot's embeddings complete once every chunk
+ * has one. Errors from the embedder propagate after the finished batches are saved.
+ */
+export async function embedMissingChunks(
+  deps: {
+    prisma: PrismaClient;
+    embedder: ChunkEmbedder;
+    batchSize?: number;
+    onProgress?: (embedded: number, total: number) => void;
+  },
+  snapshotId: string,
+): Promise<{ embedded: number; total: number }> {
+  const { prisma, embedder, batchSize = 100 } = deps;
+  const missing = await prisma.chunk.findMany({
+    where: {
+      snapshotId,
+      OR: [{ embeddingModel: null }, { embeddingModel: { not: embedder.model } }],
+    },
+    orderBy: { id: 'asc' },
+    select: {
+      id: true,
+      label: true,
+      header: true,
+      content: true,
+      file: { select: { path: true } },
+    },
+  });
+  const total = await prisma.chunk.count({ where: { snapshotId } });
+  let embedded = total - missing.length;
+
+  for (let i = 0; i < missing.length; i += batchSize) {
+    const batch = missing.slice(i, i + batchSize);
+    const vectors = await embedder.embedDocuments(
+      batch.map((c) => embeddingInput({ ...c, path: c.file.path })),
+    );
+    await saveEmbeddings(
+      prisma,
+      batch.map((c) => c.id),
+      vectors,
+      embedder.model,
+    );
+    embedded += batch.length;
+    deps.onProgress?.(embedded, total);
+  }
+
+  const snapshot = await prisma.snapshot.findUniqueOrThrow({
+    where: { id: snapshotId },
+    select: { stats: true },
+  });
+  if (snapshot.stats && typeof snapshot.stats === 'object') {
+    await prisma.snapshot.update({
+      where: { id: snapshotId },
+      data: {
+        stats: {
+          ...(snapshot.stats as Record<string, unknown>),
+          embeddings: { status: 'complete', model: embedder.model, embedded },
+        },
+      },
+    });
+  }
+  return { embedded, total };
 }
 
 /** Returns a message for failures that retrying can't fix; null for transient ones. */
