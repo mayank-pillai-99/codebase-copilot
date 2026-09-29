@@ -147,15 +147,16 @@ User pastes a GitHub issue URL or text. The ML model ranks the files most likely
 
 - Fetch the repo as a **tarball from the GitHub API** at the resolved SHA. No `git` binary, no clone of history.
 - Use `GITHUB_TOKEN` (server-side) for higher rate limits.
-- Limits (configurable, enforced before and during extraction):
-  - Tarball ≤ 50 MB
-  - ≤ 2,000 indexable source files after filtering
-  - Individual file ≤ 200 KB (larger files are skipped and listed)
-- Extract into a temp directory with **path-traversal protection**; skip symlinks; enforce total extracted size. Delete the temp directory when the job ends (success or failure).
+- Limits (configurable, enforced while streaming):
+  - Compressed archive ≤ 50 MB (`MAX_ARCHIVE_MB`)
+  - ≤ 2,000 source files after filtering (`MAX_SOURCE_FILES`)
+  - Individual file ≤ 200 KB (`MAX_FILE_KB`; larger files are skipped and counted)
+  - Accepted files ≤ 30 MB in total (`MAX_TOTAL_SOURCE_MB`), which bounds worker memory
+- The archive is **parsed as a stream in memory and never written to disk** (ADR 0003), so path-traversal and symlink entries have no filesystem to act on. They're skipped and counted, and the raw entry path is validated before GitHub's top-level folder is removed.
 
 ### 5.2 Filtering
 
-Skip: `node_modules/`, `dist/`, `build/`, `.next/`, `coverage/`, `vendor/`, lockfiles, minified files (`*.min.js`, very long lines), source maps, binaries/images/fonts, generated files (detect common headers like `@generated`), and paths matched by the repo's `.gitignore` where practical.
+Skip: `node_modules/`, `dist/`, `build/`, `.next/`, `coverage/`, `vendor/`, lockfiles, minified files (`*.min.js`, very long lines), source maps, binaries/images/fonts, and generated files (detect common headers like `@generated`). `.gitignore` needs no handling: GitHub archives only contain tracked files.
 
 Index:
 
@@ -167,17 +168,21 @@ Index:
 
 For each code file, extract:
 
-- **Symbols:** functions, classes, methods, interfaces, type aliases, enums, exported `const` arrow functions / React components. Record kind, name, qualified name (`Class.method`), signature, start/end lines, exported flag, leading doc comment.
+- **Symbols:** functions, classes, methods, interfaces, type aliases, enums, exported `const` arrow functions / React components, and exported values. Record kind, name, qualified name (`Class.method`), signature, start/end lines, exported/default flags, leading doc comment.
+- **CommonJS and prototype-style definitions:** `module.exports = …`, `exports.x = …`, `var app = module.exports = {}` followed by `app.init = function () {}`, and `Foo.prototype.bar = function () {}`. Members assigned onto an object keep it as their _container_, so `this.x()` resolves to a sibling and bare `x()` never matches them.
 - **Imports / exports:** module specifier, imported names, resolved target file where resolvable (relative paths, `tsconfig` `paths`, `index` files). Unresolved and external package imports are kept with the package name.
 - **Call sites:** callee name and location inside each symbol.
 
-**Call graph resolution is approximate** and must be labelled as such in the UI and docs. Resolve a call to a symbol when the callee name matches an imported binding or a symbol in the same file; otherwise record it unresolved. Do not claim type-accurate resolution. (A future ADR may evaluate the TypeScript compiler API for precise resolution.)
+**Call graph resolution is approximate** and must be labelled as such in the UI and docs. Resolve a call to a symbol through import bindings (following re-export chains), namespace imports, static class methods, `this.method()`, and same-file symbols; otherwise record it unresolved. Calls on local variables stay unresolved, because resolving them needs type inference. Do not claim type-accurate resolution. (A future ADR may evaluate the TypeScript compiler API for precise resolution.)
 
 ### 5.4 Route and integration detection
 
 Deterministic detectors, each a small tested module:
 
-- **Routes:** Express/Fastify/Koa style `app|router.(get|post|put|patch|delete)(path, …handlers)`; Next.js `app/**/route.ts` and `pages/api/**`. Record method, path, handler symbol, file, lines.
+- **Routes** (Milestone 3): Express/Fastify/Koa style `app|router.(get|post|put|patch|delete|all)(path, …handlers)`, including `router.route('/x').get(h)` chains and wrapped handlers (`asyncHandler(fn)`); Next.js `app/**/route.ts` and `pages/api/**`. HTTP-client calls such as `axios.get('/x', config)` are excluded. Record method, path, handler (resolved across files where possible), file, lines.
+
+Integration and data-layer detection moves to Milestone 7, where the architecture map uses it:
+
 - **External integrations:** from `package.json` dependencies and import sites (e.g. `stripe`, `@prisma/client`, `pg`, `redis`, `openai`, `aws-sdk`, `nodemailer`), plus env-var names referenced (`process.env.X`).
 - **Data layer:** Prisma schema models, ORM model definitions, SQL migration folders.
 
@@ -370,18 +375,22 @@ Learning-to-rank over candidate files:
 Indicative — refine during implementation.
 
 ```text
-User            id, email, passwordHash, createdAt
-Repository      id, owner, name, defaultBranch, createdById?, createdAt       (unique owner+name)
-Snapshot        id, repositoryId, commitSha, ref, status, failureReason?,
-                progress (json), stats (json), embeddingModel, createdAt, readyAt?
-                                                                               (unique repositoryId+commitSha)
-File            id, snapshotId, path, language, sizeBytes, contentHash, content, isDoc, isConfig
-Symbol          id, fileId, kind, name, qualifiedName, signature, startLine, endLine,
-                exported, docComment?
-ImportEdge      id, fromFileId, toFileId?, specifier, importedNames[], external(bool), packageName?
-CallEdge        id, fromSymbolId, toSymbolId?, calleeName, line, resolved(bool)
-Route           id, snapshotId, method, path, handlerSymbolId?, fileId, startLine, endLine, framework
-Integration     id, snapshotId, kind, name, evidence (json)
+User              id, email, passwordHash, createdAt
+Repository        id, owner, name, defaultBranch, createdAt                     (unique owner+name)
+TrackedRepository userId, repositoryId, createdAt                              (who can see a repo's snapshots)
+Snapshot          id, repositoryId, commitSha, ref, status, failureReason?,
+                  progress (json), stats (json), createdAt, startedAt?, readyAt?
+                                                                                 (unique repositoryId+commitSha)
+File              id, snapshotId, path, kind (CODE|DOC|CONFIG), language, sizeBytes, lineCount,
+                  contentHash, content, hasErrors
+Symbol            id, snapshotId, fileId, kind, name, qualifiedName, signature, startLine, endLine,
+                  exported, isDefault, docComment?
+ImportEdge        id, snapshotId, fromFileId, toFileId?, specifier, importedNames[], kind, line,
+                  external, packageName?
+CallEdge          id, snapshotId, fileId, fromSymbolId?, toSymbolId?, calleeName, calleeText, line, resolved
+Route             id, snapshotId, fileId, method, path, framework, handlerName?, handlerSymbolId?,
+                  startLine, endLine
+Integration       id, snapshotId, kind, name, evidence (json)                   (Milestone 7)
 Chunk           id, snapshotId, fileId, symbolId?, kind, startLine, endLine, content,
                 embedding  Unsupported("vector(N)"), tsv Unsupported("tsvector"), embeddingModel
 OnboardingGuide id, snapshotId, content (json), model, createdAt
@@ -396,6 +405,8 @@ Notes:
 - `vector` and `tsvector` columns use `Unsupported(...)`, so **writes and reads of those columns use parameterized raw SQL** through Prisma. Everything else uses the Prisma client.
 - The HNSW and GIN indexes are created in hand-written SQL migrations; document them in the migration file.
 - All code data hangs off `Snapshot`, so answers are always tied to one commit and never mix versions.
+- Commits are immutable, so **one snapshot per commit is shared by every user** who adds that repository; `TrackedRepository` controls visibility (404 for everyone else).
+- The embedding model is recorded on chunks (Milestone 4), not on the snapshot.
 - Storing `File.content` in Postgres is intentional: it powers the code viewer and `read_file` tool without a separate object store. The file limits in §5.1 keep this within free storage.
 
 ---

@@ -2,7 +2,7 @@
 
 **Paste a GitHub URL, get an onboarding guide to that codebase, grounded in the actual code.**
 
-> 🚧 **Status: in development.** Foundation and accounts (sign up, log in, protected pages) are done. The features below are planned, not built yet. See the [milestones](docs/SPEC.md#21-milestones).
+> 🚧 **Status: in development.** You can add a public GitHub repository and it gets indexed into a code graph (symbols, imports, calls, HTTP routes). Chat, the architecture map and the rest of the features below are planned, not built yet. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## What it will do
 
@@ -26,10 +26,10 @@ cp .env.example .env
 npm install
 npm run infra:up        # Postgres + pgvector (host port 5433) and Redis
 npm run db:migrate
-npm run dev             # web → http://localhost:3000, API → http://localhost:4000
+npm run dev             # web → http://localhost:3000, API → http://localhost:4000, plus the indexing worker
 ```
 
-The home page shows live status for the API, PostgreSQL, pgvector and Redis.
+Sign up, then add a repository on the Repositories page. Setting `GITHUB_TOKEN` in `.env` raises GitHub's API limit from 60 to 5,000 requests per hour.
 
 To run the whole stack in containers instead: `docker compose --profile app up --build`.
 

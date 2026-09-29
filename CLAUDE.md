@@ -6,7 +6,7 @@ Codebase Copilot: paste a GitHub URL, get an onboarding guide to that codebase, 
 
 ## Current status
 
-Milestones 1 (foundation) and 2 (auth) are done. Auth uses email/password with Argon2id and a JWT in an httpOnly cookie, and only the API verifies it (ADR 0002). Next: Milestone 3 (repository ingestion and parsing). See `docs/SPEC.md` §21.
+Milestones 1–3 are done: foundation, auth (ADR 0002), and repository ingestion (ADR 0003). A GitHub URL becomes a snapshot of one commit with files, symbols, import/call edges and routes, indexed by a BullMQ worker. Next: Milestone 4 (chunks, embeddings, hybrid retrieval, grounded chat, code viewer, first deploy). See `docs/SPEC.md` §21.
 
 ## Stack
 
@@ -25,7 +25,7 @@ Run from the repo root. Local config is one `.env` at the root (`cp .env.example
 npm install                 # also runs `prisma generate` for the API
 npm run infra:up            # Postgres (host port 5433) + Redis via Docker
 npm run db:migrate          # prisma migrate dev (creates/applies migrations)
-npm run dev                 # API :4000 + web :3000 (or dev:api / dev:web)
+npm run dev                 # API :4000, indexing worker, web :3000 (or dev:api / dev:web)
 npm run lint && npm run format:check && npm run typecheck
 npm test                    # unit tests; add RUN_INTEGRATION=1 with DATABASE_URL/REDIS_URL set for integration
 npm run build
@@ -39,6 +39,9 @@ docker compose --profile app up --build   # whole stack in containers
 - Auth: protect API routes with `{ preHandler: app.authenticate }` (the user id is in `request.user.sub`), and check ownership with `assertOwnedBy()` from `src/lib/authz.ts`. On the web side, use `requireUser(path)` / `getCurrentUser()` from `src/lib/session.ts`.
 - Fastify replies are thenable: never resolve an async helper to `reply`, or the handler deadlocks.
 - Web tests: `npm test --workspace @codebase-copilot/web` (vitest, pure `lib/` functions).
+- Indexing lives in `apps/api/src/indexing/`: `tarball.ts` (in-memory extraction and limits) → `parser.ts` (tree-sitter) → `routes.ts` → `modules.ts` (import resolution) → `graph.ts` (links calls and handlers) → `persist.ts`, orchestrated by `indexer.ts`. Test repos are built in memory with `tests/support/tar.ts` and `fixture-repo.ts`.
+- Integration tests: `RUN_INTEGRATION=1` with `DATABASE_URL` and `REDIS_URL` set. They use unique names and clean up after themselves.
+- Without `GITHUB_TOKEN`, GitHub allows 60 API requests/hour per IP. For local testing, pass one in the environment rather than writing it to `.env`, e.g. `GITHUB_TOKEN=$(gh auth token) npm run dev`.
 
 ## Hard rules
 
