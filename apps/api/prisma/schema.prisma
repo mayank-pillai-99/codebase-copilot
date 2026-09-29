@@ -18,5 +18,212 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  trackedRepositories TrackedRepository[]
+
   @@map("users")
+}
+
+/// A public GitHub repository. Shared by every user who tracks it.
+model Repository {
+  id            String   @id @default(uuid()) @db.Uuid
+  owner         String
+  name          String
+  defaultBranch String   @map("default_branch")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  snapshots Snapshot[]
+  trackedBy TrackedRepository[]
+
+  @@unique([owner, name])
+  @@map("repositories")
+}
+
+/// Which users added which repositories. Controls who can see a repository's snapshots.
+model TrackedRepository {
+  userId       String   @map("user_id") @db.Uuid
+  repositoryId String   @map("repository_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, repositoryId])
+  @@map("tracked_repositories")
+}
+
+enum SnapshotStatus {
+  QUEUED
+  FETCHING
+  PARSING
+  READY
+  FAILED
+}
+
+/// One indexed commit of a repository. All code data hangs off a snapshot, so
+/// answers are always tied to exactly one commit.
+model Snapshot {
+  id            String         @id @default(uuid()) @db.Uuid
+  repositoryId  String         @map("repository_id") @db.Uuid
+  commitSha     String         @map("commit_sha")
+  /// The branch, tag or SHA the user asked for.
+  ref           String
+  status        SnapshotStatus @default(QUEUED)
+  /// Shown to users when status is FAILED; never contains internals.
+  failureReason String?        @map("failure_reason")
+  /// { stage, processed, total } while indexing.
+  progress      Json?
+  /// Counts and skipped-file summary once READY.
+  stats         Json?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  startedAt     DateTime?      @map("started_at")
+  readyAt       DateTime?      @map("ready_at")
+
+  repository Repository   @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  files      File[]
+  symbols    Symbol[]
+  imports    ImportEdge[]
+  calls      CallEdge[]
+  routes     Route[]
+
+  @@unique([repositoryId, commitSha])
+  @@map("snapshots")
+}
+
+enum FileKind {
+  CODE
+  DOC
+  CONFIG
+}
+
+model File {
+  id          String   @id @db.Uuid
+  snapshotId  String   @map("snapshot_id") @db.Uuid
+  path        String
+  kind        FileKind
+  /// typescript | tsx | javascript | markdown | json | yaml | dockerfile | prisma | text
+  language    String
+  sizeBytes   Int      @map("size_bytes")
+  lineCount   Int      @map("line_count")
+  contentHash String   @map("content_hash")
+  /// Stored so the code viewer and read_file tool don't need an object store (SPEC §11).
+  content     String
+  /// Parse errors were found; extraction for this file may be partial.
+  hasErrors   Boolean  @default(false) @map("has_errors")
+
+  snapshot    Snapshot     @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  symbols     Symbol[]
+  importsFrom ImportEdge[] @relation("ImportFrom")
+  importedBy  ImportEdge[] @relation("ImportTo")
+  calls       CallEdge[]
+  routes      Route[]
+
+  @@unique([snapshotId, path])
+  @@map("files")
+}
+
+enum SymbolKind {
+  FUNCTION
+  CLASS
+  METHOD
+  INTERFACE
+  TYPE
+  ENUM
+  VARIABLE
+}
+
+model Symbol {
+  id            String     @id @db.Uuid
+  snapshotId    String     @map("snapshot_id") @db.Uuid
+  fileId        String     @map("file_id") @db.Uuid
+  kind          SymbolKind
+  name          String
+  /// e.g. PaymentService.createPayment
+  qualifiedName String     @map("qualified_name")
+  signature     String
+  startLine     Int        @map("start_line")
+  endLine       Int        @map("end_line")
+  exported      Boolean
+  isDefault     Boolean    @default(false) @map("is_default")
+  docComment    String?    @map("doc_comment")
+
+  snapshot      Snapshot   @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  file          File       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  callsOut      CallEdge[] @relation("CallFrom")
+  callsIn       CallEdge[] @relation("CallTo")
+  handlesRoutes Route[]
+
+  @@index([snapshotId, name])
+  @@index([fileId])
+  @@map("symbols")
+}
+
+model ImportEdge {
+  id            String   @id @db.Uuid
+  snapshotId    String   @map("snapshot_id") @db.Uuid
+  fromFileId    String   @map("from_file_id") @db.Uuid
+  /// Null for packages and anything that couldn't be resolved inside the repo.
+  toFileId      String?  @map("to_file_id") @db.Uuid
+  specifier     String
+  importedNames String[] @map("imported_names")
+  /// static | reexport | require | dynamic
+  kind          String
+  line          Int
+  external      Boolean
+  packageName   String?  @map("package_name")
+
+  snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  fromFile File     @relation("ImportFrom", fields: [fromFileId], references: [id], onDelete: Cascade)
+  toFile   File?    @relation("ImportTo", fields: [toFileId], references: [id], onDelete: SetNull)
+
+  @@index([snapshotId])
+  @@index([fromFileId])
+  @@index([toFileId])
+  @@map("import_edges")
+}
+
+/// A call site. Resolution is approximate (name-based), never type-accurate.
+model CallEdge {
+  id           String  @id @db.Uuid
+  snapshotId   String  @map("snapshot_id") @db.Uuid
+  fileId       String  @map("file_id") @db.Uuid
+  /// Null for calls at module scope.
+  fromSymbolId String? @map("from_symbol_id") @db.Uuid
+  toSymbolId   String? @map("to_symbol_id") @db.Uuid
+  calleeName   String  @map("callee_name")
+  /// Callee as written, e.g. this.payments.create
+  calleeText   String  @map("callee_text")
+  line         Int
+  resolved     Boolean
+
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  file       File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fromSymbol Symbol?  @relation("CallFrom", fields: [fromSymbolId], references: [id], onDelete: Cascade)
+  toSymbol   Symbol?  @relation("CallTo", fields: [toSymbolId], references: [id], onDelete: SetNull)
+
+  @@index([snapshotId])
+  @@index([fromSymbolId])
+  @@index([toSymbolId])
+  @@map("call_edges")
+}
+
+model Route {
+  id              String  @id @db.Uuid
+  snapshotId      String  @map("snapshot_id") @db.Uuid
+  fileId          String  @map("file_id") @db.Uuid
+  /// GET, POST, … or ANY
+  method          String
+  path            String
+  /// express-style | nextjs-app | nextjs-pages
+  framework       String
+  handlerName     String? @map("handler_name")
+  handlerSymbolId String? @map("handler_symbol_id") @db.Uuid
+  startLine       Int     @map("start_line")
+  endLine         Int     @map("end_line")
+
+  snapshot      Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  file          File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  handlerSymbol Symbol?  @relation(fields: [handlerSymbolId], references: [id], onDelete: SetNull)
+
+  @@index([snapshotId])
+  @@map("routes")
 }
