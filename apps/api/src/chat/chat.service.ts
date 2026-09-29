@@ -195,7 +195,10 @@ export function createChatService(deps: {
           text += token;
           emit({ type: 'token', text: token });
         }
-        if (signal.aborted) return;
+        if (signal.aborted) {
+          logger.info({ sessionId: prepared.sessionId }, 'chat aborted by client');
+          return;
+        }
 
         const check = checkCitations(text, sources.length);
         const citations = check.valid.map((marker) => ({ marker, chunk: sources[marker - 1]! }));
@@ -229,8 +232,19 @@ export function createChatService(deps: {
           'chat answered',
         );
       } catch (err) {
-        if (signal.aborted) return;
-        logger.error({ err, sessionId: prepared.sessionId }, 'chat failed');
+        if (signal.aborted) {
+          logger.info({ sessionId: prepared.sessionId }, 'chat aborted by client');
+          return;
+        }
+        logger.error(
+          {
+            err,
+            cause:
+              err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined,
+            sessionId: prepared.sessionId,
+          },
+          'chat failed',
+        );
         emit({
           type: 'error',
           message:

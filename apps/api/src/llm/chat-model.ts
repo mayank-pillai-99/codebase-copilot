@@ -9,21 +9,45 @@ export interface ChatModel {
   stream(messages: PromptMessage[], signal?: AbortSignal): AsyncIterable<string>;
 }
 
+export type ChatFailure = 'overloaded' | 'rate-limited' | 'rejected' | 'failed';
+
 export class ChatModelError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(
+    message: string,
+    public readonly kind: ChatFailure = 'failed',
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
     this.name = 'ChatModelError';
+  }
+
+  /** Worth trying another model: this one is busy, not broken. */
+  get transient(): boolean {
+    return this.kind === 'overloaded' || this.kind === 'rate-limited';
   }
 }
 
-/** Gemini through LangChain's ChatGoogleGenerativeAI. */
+const MESSAGES: Record<ChatFailure, string> = {
+  overloaded: 'The AI models are overloaded right now. Please try again in a minute.',
+  'rate-limited': 'The AI service is rate-limiting requests. Please try again in a minute.',
+  rejected: 'The AI service rejected the request. Check the API key.',
+  failed: 'The AI service failed to answer. Please try again.',
+};
+
+// Free-tier models sometimes stall instead of answering 503; give the next model a turn.
+const DEFAULT_FIRST_TOKEN_TIMEOUT_MS = 15_000;
+
+/**
+ * Gemini through LangChain's ChatGoogleGenerativeAI. Retries are off: an overloaded
+ * model should hand over to a fallback within seconds rather than retry for a minute.
+ */
 export function createGeminiChatModel(options: { apiKey: string; model: string }): ChatModel {
   const llm = new ChatGoogleGenerativeAI({
     apiKey: options.apiKey,
     model: options.model,
     temperature: 0.2,
     maxOutputTokens: 2_048,
-    maxRetries: 2,
+    maxRetries: 0,
   });
 
   return {
@@ -33,7 +57,7 @@ export function createGeminiChatModel(options: { apiKey: string; model: string }
       try {
         stream = await llm.stream(messages.map(toLangChain), { signal });
       } catch (err) {
-        throw new ChatModelError(describe(err));
+        throw classify(err);
       }
       try {
         for await (const chunk of stream) {
@@ -42,10 +66,78 @@ export function createGeminiChatModel(options: { apiKey: string; model: string }
         }
       } catch (err) {
         if (signal?.aborted) return;
-        throw new ChatModelError(describe(err));
+        throw classify(err);
       }
     },
   };
+}
+
+/**
+ * Tries models in order. When one is overloaded or rate-limited before producing any
+ * text, the next one answers instead. Free-tier models are busy often enough that
+ * this matters. Failures after text has streamed are passed on, since switching
+ * models mid-answer would produce a garbled reply.
+ */
+export function withFallbacks(
+  models: ChatModel[],
+  options: { firstTokenTimeoutMs?: number } = {},
+): ChatModel {
+  if (models.length === 0) throw new Error('withFallbacks needs at least one model');
+  const firstTokenTimeoutMs = options.firstTokenTimeoutMs ?? DEFAULT_FIRST_TOKEN_TIMEOUT_MS;
+
+  return {
+    model: models.map((m) => m.model).join(' → '),
+    async *stream(messages, signal) {
+      for (const [i, model] of models.entries()) {
+        const last = i === models.length - 1;
+        // Per-attempt signal: aborted when the caller aborts, or when this model is too slow.
+        const attempt = new AbortController();
+        const onAbort = () => attempt.abort();
+        signal?.addEventListener('abort', onAbort, { once: true });
+        const iterator = model.stream(messages, attempt.signal)[Symbol.asyncIterator]();
+        let started = false;
+        try {
+          // The last model gets no deadline: slow is better than nothing.
+          const first = await (last
+            ? iterator.next()
+            : firstOrTimeout(iterator, firstTokenTimeoutMs, attempt));
+          if (first.done) return;
+          started = true;
+          yield first.value;
+          for (let next = await iterator.next(); !next.done; next = await iterator.next()) {
+            yield next.value;
+          }
+          return;
+        } catch (err) {
+          if (signal?.aborted) return;
+          if (started || last || !(err instanceof ChatModelError) || !err.transient) throw err;
+        } finally {
+          signal?.removeEventListener('abort', onAbort);
+        }
+      }
+    },
+  };
+}
+
+async function firstOrTimeout(
+  iterator: AsyncIterator<string>,
+  timeoutMs: number,
+  attempt: AbortController,
+): Promise<IteratorResult<string>> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      iterator.next(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          attempt.abort();
+          reject(new ChatModelError(MESSAGES.overloaded, 'overloaded'));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function toLangChain(message: PromptMessage): BaseMessage {
@@ -54,11 +146,14 @@ function toLangChain(message: PromptMessage): BaseMessage {
   return new HumanMessage(message.content);
 }
 
-function describe(err: unknown): string {
+export function classify(err: unknown): ChatModelError {
   const text = err instanceof Error ? err.message : String(err);
-  if (/429|quota|rate/i.test(text))
-    return 'The AI service is busy (rate limit). Try again in a minute.';
-  if (/API key|permission|403|401/i.test(text))
-    return 'The AI service rejected the request. Check the API key.';
-  return 'The AI service failed to answer. Please try again.';
+  const kind: ChatFailure = /\b503\b|overloaded|high demand|unavailable/i.test(text)
+    ? 'overloaded'
+    : /\b429\b|quota|rate.?limit|resource.?exhausted/i.test(text)
+      ? 'rate-limited'
+      : /API key|permission|denied|\b40[13]\b/i.test(text)
+        ? 'rejected'
+        : 'failed';
+  return new ChatModelError(MESSAGES[kind], kind, { cause: err });
 }

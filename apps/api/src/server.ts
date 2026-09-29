@@ -12,7 +12,7 @@ import { createIndexingQueue, startIndexingWorker } from './queue/indexing-queue
 import { createFullTextRetriever } from './retrieval/fulltext';
 import { createHybridRetriever } from './retrieval/hybrid';
 import { createVectorRetriever } from './retrieval/vector';
-import { createGeminiChatModel } from './llm/chat-model';
+import { createGeminiChatModel, withFallbacks } from './llm/chat-model';
 import { GeminiEmbeddings } from './llm/embeddings';
 import { createUserRepository } from './repositories/user.repository';
 import { createAuthService } from './services/auth.service';
@@ -42,8 +42,12 @@ async function main(): Promise<void> {
     createVectorRetriever(prisma, embeddings),
     createFullTextRetriever(prisma),
   );
-  const chatModel = env.GEMINI_API_KEY
-    ? createGeminiChatModel({ apiKey: env.GEMINI_API_KEY, model: env.LLM_MODEL })
+  const chatModels = [env.LLM_MODEL, ...env.LLM_FALLBACK_MODELS.split(',')]
+    .map((model) => model.trim())
+    .filter((model, i, all) => model && all.indexOf(model) === i);
+  const geminiKey = env.GEMINI_API_KEY;
+  const chatModel = geminiKey
+    ? withFallbacks(chatModels.map((model) => createGeminiChatModel({ apiKey: geminiKey, model })))
     : null;
 
   // The chat service logs through the app's pino logger, which exists once the app is built.

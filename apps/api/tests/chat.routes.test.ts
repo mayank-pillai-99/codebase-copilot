@@ -16,6 +16,7 @@ function parseSse(body: string) {
   return body
     .trim()
     .split('\n\n')
+    .filter((block) => !block.startsWith(':')) // heartbeat comments
     .map((block) => {
       const [eventLine, dataLine] = block.split('\n');
       return {
@@ -61,6 +62,34 @@ describe('POST /api/snapshots/:id/chat', () => {
       sessionId: undefined,
       message: 'How does auth work?',
     });
+  });
+
+  it('sends heartbeat comments while the answer is slow', async () => {
+    app = await buildTestApp({
+      chat: {
+        ...unusedChat,
+        prepare: async ({ message }) => ({
+          sessionId: SESSION,
+          snapshotId: SNAPSHOT,
+          question: message,
+          history: [],
+        }),
+        answer: async (_prepared, emit) => {
+          await new Promise((resolve) => setTimeout(resolve, 80));
+          emit({ type: 'done', messageId: SESSION, content: 'ok', citations: [], flagged: false });
+        },
+      },
+      chatHeartbeatMs: 20,
+    });
+    const { cookies } = await signIn(app);
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/snapshots/${SNAPSHOT}/chat`,
+      cookies,
+      payload: { message: 'hi' },
+    });
+    expect(res.body).toContain(': keep-alive\n\n');
+    expect(parseSse(res.body).map((e) => e.event)).toEqual(['done']);
   });
 
   it('returns ordinary JSON errors for problems found before streaming', async () => {

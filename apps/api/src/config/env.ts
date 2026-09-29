@@ -39,6 +39,8 @@ const envSchema = z.object({
   EMBEDDING_MODEL: z.string().default('gemini-embedding-2'),
   // Chat model; the -latest alias follows Google's current Flash model.
   LLM_MODEL: z.string().default('gemini-flash-latest'),
+  // Comma-separated models tried in order when the main one is overloaded or rate-limited.
+  LLM_FALLBACK_MODELS: z.string().default('gemini-flash-lite-latest'),
   // Answers per user per day, protecting the free LLM quota.
   CHAT_DAILY_LIMIT: z.coerce.number().int().positive().default(100),
 

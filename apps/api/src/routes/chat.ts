@@ -9,6 +9,8 @@ export interface ChatRouteOptions {
   chat: ChatService;
   /** Daily caps on answers: per user, and per IP for anonymous demo visitors. Absent in tests. */
   quota?: { user: DailyQuota; anonymous: DailyQuota } | undefined;
+  /** SSE comment interval that keeps proxies from closing a quiet stream. */
+  heartbeatMs?: number;
 }
 
 type SnapshotParams = { Params: { id: string } };
@@ -29,7 +31,10 @@ async function maxPerMinute(request: FastifyRequest): Promise<number> {
   return (await userKey(request)).startsWith('user:') ? 10 : 4;
 }
 
-export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (app, { chat, quota }) => {
+export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (
+  app,
+  { chat, quota, heartbeatMs = 10_000 },
+) => {
   // Anonymous visitors may chat about demo repositories; the service enforces which.
   app.addHook('preHandler', app.identify);
 
@@ -79,8 +84,17 @@ export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (app, { ch
           res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       };
 
-      await chat.answer(prepared, emit, abort.signal);
-      res.end();
+      // Proxies (Next.js rewrites, Render, Vercel) close connections that stay idle for
+      // ~30 s; a comment line every few seconds keeps the stream open while the model thinks.
+      const heartbeat = setInterval(() => {
+        if (!res.writableEnded) res.write(': keep-alive\n\n');
+      }, heartbeatMs);
+      try {
+        await chat.answer(prepared, emit, abort.signal);
+      } finally {
+        clearInterval(heartbeat);
+        res.end();
+      }
     },
   );
 

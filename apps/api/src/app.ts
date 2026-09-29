@@ -32,6 +32,8 @@ export interface AppDeps {
   code: CodeService;
   /** Daily caps on chat answers (per user, and per IP for anonymous demo visitors); omitted in tests. */
   chatQuota?: { user: DailyQuota; anonymous: DailyQuota };
+  /** Overrides the SSE heartbeat interval (tests). */
+  chatHeartbeatMs?: number;
   /** Shared rate-limit counters across instances; in-memory when omitted (tests). */
   redis?: Redis;
 }
@@ -44,6 +46,7 @@ export async function buildApp({
   chat,
   code,
   chatQuota,
+  chatHeartbeatMs,
   redis,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env), trustProxy: env.TRUST_PROXY });
@@ -102,7 +105,11 @@ export async function buildApp({
   });
   await app.register(authRoutes, { auth });
   await app.register(repositoryRoutes, { repositories });
-  await app.register(chatRoutes, { chat, quota: chatQuota });
+  await app.register(chatRoutes, {
+    chat,
+    quota: chatQuota,
+    ...(chatHeartbeatMs && { heartbeatMs: chatHeartbeatMs }),
+  });
   await app.register(codeRoutes, { code });
 
   return app;
