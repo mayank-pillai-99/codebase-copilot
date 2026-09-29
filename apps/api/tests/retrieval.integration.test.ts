@@ -177,4 +177,19 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('retrieval (integration)
     ]);
     expect(results[1]!.score).toBeCloseTo(results[0]!.score / 2);
   });
+
+  it('can turn graph expansion off (for evaluation)', async () => {
+    const hybrid = createHybridRetriever(
+      prisma,
+      createVectorRetriever(prisma, null),
+      createFullTextRetriever(prisma),
+      { graphExpansion: false },
+    );
+    const results = await hybrid.retrieve({
+      snapshotId: expansionSnapshotId,
+      query: 'submit order',
+      k: 5,
+    });
+    expect(labels(results)).toEqual(['submitOrder']);
+  });
 });

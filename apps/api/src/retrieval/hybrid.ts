@@ -41,6 +41,8 @@ export function createHybridRetriever(
   prisma: PrismaClient,
   vector: Retriever,
   fulltext: Retriever,
+  /** Evaluation turns graph expansion off to measure what it adds. */
+  { graphExpansion = true }: { graphExpansion?: boolean } = {},
 ): Retriever {
   return {
     name: 'hybrid',
@@ -53,7 +55,7 @@ export function createHybridRetriever(
       const details = new Map([...byVector, ...byText].map((c) => [c.chunkId, c]));
 
       const top = fused.slice(0, k);
-      const expanded = await expandAlongCalls(prisma, top);
+      const expanded = graphExpansion ? await expandAlongCalls(prisma, top) : [];
       const ranked = [...top, ...expanded].sort((a, b) => b.score - a.score).slice(0, k);
 
       // Chunks from the candidate lists are already loaded; only graph additions need a query.
