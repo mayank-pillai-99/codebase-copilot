@@ -9,7 +9,6 @@ const COLUMNS = [
     links: [
       { href: '/#demos', label: 'Demo repositories' },
       { href: '/register', label: 'Analyze a repository' },
-      { href: '/eval', label: 'Retrieval evaluation' },
     ],
   },
   {

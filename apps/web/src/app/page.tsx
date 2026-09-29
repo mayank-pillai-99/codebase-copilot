@@ -98,7 +98,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-8">
+      <section id="how-it-works" className="flex scroll-mt-24 flex-col gap-8">
         <SectionTitle eyebrow="How it works" title="From a URL to answers you can check" />
         <ol className="grid gap-4 md:grid-cols-3">
           {[
@@ -126,7 +126,7 @@ export default async function HomePage() {
         </ol>
       </section>
 
-      <section className="flex flex-col gap-8">
+      <section id="features" className="flex scroll-mt-24 flex-col gap-8">
         <SectionTitle eyebrow="What you get" title="Four ways into an unfamiliar codebase" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Feature
@@ -148,10 +148,10 @@ export default async function HomePage() {
             icon={<IconChat />}
           />
           <Feature
-            href="/eval"
-            title="Measured retrieval"
-            body="A public benchmark compares vector, full-text and hybrid search on pinned open-source repositories."
-            icon={<IconChart />}
+            href={tab('/code')}
+            title="Code viewer"
+            body="Syntax-highlighted files at the indexed commit, with a symbol outline and linkable line ranges."
+            icon={<IconCode />}
           />
         </div>
       </section>
@@ -159,7 +159,7 @@ export default async function HomePage() {
       {!demo.ok && demo.unreachable ? (
         <ServerWaking />
       ) : demos.length > 0 ? (
-        <section id="demos" className="flex scroll-mt-20 flex-col gap-8">
+        <section id="demos" className="flex scroll-mt-24 flex-col gap-8">
           <SectionTitle eyebrow="No account needed" title="Try it on a demo repository" />
           <ul className="grid gap-4 sm:grid-cols-2">
             {demos.map((repo) => (
@@ -281,11 +281,10 @@ function IconChat() {
     </svg>
   );
 }
-function IconChart() {
+function IconCode() {
   return (
     <svg {...iconProps}>
-      <path d="M4 20V4M4 20h16" />
-      <path d="M8 16v-4M12 16V8M16 16v-6" />
+      <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" />
     </svg>
   );
 }

@@ -21,9 +21,10 @@ interface NavItem {
 export function HeaderNav({ email }: { email: string | null }) {
   const pathname = usePathname();
   const items: NavItem[] = [
+    { href: '/#features', label: 'Features' },
+    { href: '/#how-it-works', label: 'How it works' },
     { href: '/#demos', label: 'Demos' },
     ...(email ? [{ href: '/repos', label: 'Repositories' }] : []),
-    { href: '/eval', label: 'Evaluation' },
   ];
   const isActive = (href: string) =>
     !href.includes('#') && (pathname === href || pathname.startsWith(`${href}/`));

@@ -28,10 +28,6 @@ Pick a route and follow its handler into the functions it calls, breadth-first t
 
 ![Trace of POST /articles](docs/images/request-trace.png)
 
-### Measured retrieval
-
-A public [evaluation page](https://codebase-copilot-mu.vercel.app/eval) compares vector, full-text and hybrid search on open-source repositories pinned to exact commits: Recall@5, Recall@10, MRR and nDCG@10 per retriever, broken down by question type and repository. _First results are being run; the page says "not measured yet" until then._
-
 ## How it works
 
 ```mermaid
@@ -89,7 +85,7 @@ A few decisions worth reading about. Each has an ADR in [docs/decisions](docs/de
 - **Hybrid retrieval with graph expansion.** RRF fuses cosine similarity and `ts_rank` without calibrating their scales; a one-hop expansion over resolved call edges pulls in code that shares no words with the question.
 - **Deterministic analysis first.** The architecture map and traces come from the parsed graph and carry evidence (import lines, call sites). They're computed on first request and cached per snapshot with a version, so old snapshots never need re-indexing.
 - **Built for flaky free tiers.** Resumable embedding that survives rate limits, model fallbacks with a first-token deadline, SSE heartbeats through proxies, and a "waking up" state for cold starts.
-- **Measurement over claims.** Retrievers share one interface so they can be benchmarked; the evaluation records dataset versions, pinned SHAs and how the questions were written.
+- **Swappable retrievers.** Vector, full-text and hybrid search implement one interface, so a strategy can be changed or compared without touching chat.
 
 ## Running locally
 
@@ -108,7 +104,6 @@ Sign up and add a repository, or set `DEMO_REPOSITORIES` to explore some without
 ```bash
 npm run lint && npm run typecheck
 RUN_INTEGRATION=1 npm test                 # needs DATABASE_URL and REDIS_URL from .env
-npm run eval                               # retrieval benchmark (see eval/README.md)
 docker compose --profile app up --build    # whole stack in containers
 ```
 
@@ -121,19 +116,16 @@ apps/api          Fastify API, indexing worker, Prisma schema and migrations
   src/retrieval   vector, full-text and hybrid retrievers behind one interface
   src/analysis    components, integrations and the architecture map
   src/chat        prompt, citation validation, streaming service
-  src/eval        benchmark metrics, dataset loader and runner
 packages/shared   zod schemas and types shared by web and API
-eval/             evaluation datasets and committed results
 docs/             specification, ADRs, deployment guide
 ```
 
 ## Status
 
-Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the architecture map, request tracing, the evaluation harness and a free-tier deployment. Next: publishing the first evaluation results, then an agentic tool-use retriever benchmarked against hybrid search. See the [milestones](docs/SPEC.md#21-milestones).
+Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the architecture map, request tracing and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## Documentation
 
 - [Project specification](docs/SPEC.md)
 - [Architecture decisions](docs/decisions/)
-- [Retrieval evaluation](eval/README.md)
 - [Deploying on free tiers](docs/deployment.md)
