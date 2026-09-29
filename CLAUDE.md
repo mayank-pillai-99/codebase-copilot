@@ -6,7 +6,7 @@ Codebase Copilot: paste a GitHub URL, get an onboarding guide to that codebase, 
 
 ## Current status
 
-Milestone 1 (foundation) done: monorepo, Docker Compose, Fastify API with `/api/health`, Next.js app, Prisma migrations (pgvector enabled), CI. Next: Milestone 2 (auth). See `docs/SPEC.md` §21.
+Milestones 1 (foundation) and 2 (auth) are done. Auth uses email/password with Argon2id and a JWT in an httpOnly cookie, and only the API verifies it (ADR 0002). Next: Milestone 3 (repository ingestion and parsing). See `docs/SPEC.md` §21.
 
 ## Stack
 
@@ -36,6 +36,9 @@ docker compose --profile app up --build   # whole stack in containers
 - Extension or index SQL that Prisma can't express goes in hand-written migrations; afterwards, `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` must print an empty migration.
 - `packages/shared` ships TypeScript source: the API bundles it with tsup, and Next.js uses `transpilePackages`.
 - Don't put `NODE_ENV` in `.env`. It breaks `next build`.
+- Auth: protect API routes with `{ preHandler: app.authenticate }` (the user id is in `request.user.sub`), and check ownership with `assertOwnedBy()` from `src/lib/authz.ts`. On the web side, use `requireUser(path)` / `getCurrentUser()` from `src/lib/session.ts`.
+- Fastify replies are thenable: never resolve an async helper to `reply`, or the handler deadlocks.
+- Web tests: `npm test --workspace @codebase-copilot/web` (vitest, pure `lib/` functions).
 
 ## Hard rules
 

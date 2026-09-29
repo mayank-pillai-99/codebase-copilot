@@ -2,7 +2,7 @@
 
 **Paste a GitHub URL, get an onboarding guide to that codebase, grounded in the actual code.**
 
-> 🚧 **Status: in development.** Milestone 1 (foundation) is done. The features below are planned, not built yet. See the [milestones](docs/SPEC.md#21-milestones).
+> 🚧 **Status: in development.** Foundation and accounts (sign up, log in, protected pages) are done. The features below are planned, not built yet. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## What it will do
 
