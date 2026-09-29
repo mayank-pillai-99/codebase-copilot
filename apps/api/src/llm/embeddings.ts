@@ -153,6 +153,21 @@ function retryDelay(res: Response, detail: unknown): number | null {
 }
 
 function errorMessage(detail: unknown): string {
-  const message = (detail as { error?: { message?: string } })?.error?.message;
-  return typeof message === 'string' ? message.slice(0, 300) : 'unknown error';
+  const error = (
+    detail as {
+      error?: {
+        message?: string;
+        details?: { violations?: { quotaId?: string; quotaValue?: string }[] }[];
+      };
+    }
+  )?.error;
+  const message = typeof error?.message === 'string' ? error.message : 'unknown error';
+  // The message names the quota only after a long preamble; the structured detail says
+  // which limit was hit (per minute or per day) and its value.
+  const quotas = (error?.details ?? [])
+    .flatMap((d) => d.violations ?? [])
+    .map((v) => `${v.quotaId ?? 'unknown quota'}${v.quotaValue ? ` (limit ${v.quotaValue})` : ''}`);
+  return quotas.length
+    ? `${message.split('\n')[0]!.slice(0, 120)} Quota: ${quotas.join(', ')}`
+    : message.slice(0, 300);
 }

@@ -116,6 +116,35 @@ describe('GeminiEmbeddings', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it('names the exceeded quota when giving up on a rate limit', async () => {
+    const exhausted = () =>
+      Response.json(
+        {
+          error: {
+            message: 'You exceeded your current quota, please check your plan.\n* Quota exceeded…',
+            details: [
+              {
+                violations: [
+                  {
+                    quotaId: 'EmbedContentRequestsPerDayPerProjectPerModel-FreeTier',
+                    quotaValue: '1000',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        { status: 429 },
+      );
+    const fetch = fakeGemini([exhausted(), exhausted()]);
+    const error = await new GeminiEmbeddings({ apiKey: 'k', fetch, maxAttempts: 2, sleep: noSleep })
+      .embedDocuments(['a'])
+      .catch((e: unknown) => e);
+    expect((error as Error).message).toBe(
+      'Embedding request failed (429): You exceeded your current quota, please check your plan. Quota: EmbedContentRequestsPerDayPerProjectPerModel-FreeTier (limit 1000)',
+    );
+  });
+
   it('does not retry invalid requests and surfaces the API message', async () => {
     const fetch = fakeGemini([
       Response.json({ error: { message: 'API key not valid.' } }, { status: 400 }),
