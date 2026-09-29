@@ -88,6 +88,7 @@ model Snapshot {
   routes       Route[]
   chunks       Chunk[]
   chatSessions ChatSession[]
+  analyses     SnapshotAnalysis[]
 
   @@unique([repositoryId, commitSha])
   @@map("snapshots")
@@ -344,4 +345,21 @@ model EvalRun {
 
   @@index([kind, createdAt])
   @@map("eval_runs")
+}
+
+/// Derived analyses of a snapshot (e.g. the architecture map), computed on first
+/// request from the stored code graph and cached. Commits are immutable, so an entry
+/// only goes stale when the analysis code changes, which bumps its version.
+model SnapshotAnalysis {
+  snapshotId String   @map("snapshot_id") @db.Uuid
+  /// architecture
+  kind       String
+  version    Int
+  data       Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@id([snapshotId, kind])
+  @@map("snapshot_analyses")
 }

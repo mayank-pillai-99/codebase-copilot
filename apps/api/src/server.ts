@@ -15,12 +15,14 @@ import { createVectorRetriever } from './retrieval/vector';
 import { createGeminiChatModel, withFallbacks } from './llm/chat-model';
 import { GeminiEmbeddings } from './llm/embeddings';
 import { createUserRepository } from './repositories/user.repository';
+import { createArchitectureService } from './services/architecture.service';
 import { createAuthService } from './services/auth.service';
 import { createCodeService } from './services/code.service';
 import { createDependencyChecks } from './services/dependency-checks';
 import { createEvalService, importEvalResults } from './services/eval.service';
 import { createRepositoryService } from './services/repository.service';
 import { createSearchService } from './services/search.service';
+import { createTraceService } from './services/trace.service';
 import { parseDemoRepositories } from './services/snapshot-access';
 
 async function main(): Promise<void> {
@@ -75,6 +77,8 @@ async function main(): Promise<void> {
       demo,
     }),
     evals: createEvalService(prisma),
+    architecture: createArchitectureService(prisma, demo),
+    trace: createTraceService(prisma, demo),
     chatQuota: {
       user: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
       anonymous: createDailyQuota(redis, 'demo-chat', env.DEMO_CHAT_DAILY_LIMIT),

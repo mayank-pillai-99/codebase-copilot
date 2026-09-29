@@ -5,3 +5,5 @@ export * from './repositories';
 export * from './chat';
 export * from './search';
 export * from './eval';
+export * from './architecture';
+export * from './trace';

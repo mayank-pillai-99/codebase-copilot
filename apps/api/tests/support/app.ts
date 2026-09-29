@@ -7,8 +7,10 @@ import type { HealthChecks } from '../../src/services/health.service';
 import type { RepositoryService } from '../../src/services/repository.service';
 import type { ChatService } from '../../src/chat/chat.service';
 import type { CodeService } from '../../src/services/code.service';
+import type { ArchitectureService } from '../../src/services/architecture.service';
 import type { EvalService } from '../../src/services/eval.service';
 import type { SearchService } from '../../src/services/search.service';
+import type { TraceService } from '../../src/services/trace.service';
 import { createInMemoryUsers, fakeHasher } from './fakes';
 
 export const testEnv: AppDeps['env'] = {
@@ -70,6 +72,18 @@ export const unusedSearch: SearchService = {
 /** No evaluation has been run. */
 export const noEvals: EvalService = { latest: async () => null };
 
+/** Analysis services for tests that don't exercise them. */
+export const unusedArchitecture: ArchitectureService = {
+  getArchitecture: async () => {
+    throw new AppError(404, 'Not found');
+  },
+};
+export const unusedTrace: TraceService = {
+  trace: async () => {
+    throw new AppError(404, 'Not found');
+  },
+};
+
 /** App wired with in-memory fakes; override any dependency per test. */
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
   return buildApp({
@@ -81,6 +95,8 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     code: unusedCode,
     search: unusedSearch,
     evals: noEvals,
+    architecture: unusedArchitecture,
+    trace: unusedTrace,
     ...overrides,
   });
 }
