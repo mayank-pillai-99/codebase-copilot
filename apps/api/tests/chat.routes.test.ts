@@ -86,14 +86,19 @@ describe('POST /api/snapshots/:id/chat', () => {
     expect(res.json().error).toMatch(/still being indexed/);
   });
 
-  it('validates the question and requires a session', async () => {
-    app = await buildTestApp();
+  it('validates the question and lets anonymous visitors through to the service', async () => {
+    const prepare = vi.fn(async () => {
+      throw new AppError(404, 'Not found');
+    });
+    app = await buildTestApp({ chat: { ...unusedChat, prepare } });
     const anonymous = await app.inject({
       method: 'POST',
       url: `/api/snapshots/${SNAPSHOT}/chat`,
       payload: { message: 'hi' },
     });
-    expect(anonymous.statusCode).toBe(401);
+    // The service decides: anonymous visitors may only chat about demo repositories.
+    expect(anonymous.statusCode).toBe(404);
+    expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ userId: null }));
 
     const { cookies } = await signIn(app);
     const empty = await app.inject({
@@ -106,18 +111,30 @@ describe('POST /api/snapshots/:id/chat', () => {
     expect(empty.json().issues[0].message).toBe('Ask a question about the code');
   });
 
-  it('enforces the daily quota per user', async () => {
-    const consume = vi.fn(async () => false);
-    app = await buildTestApp({ chatQuota: { consume } });
+  it('enforces daily quotas per user and per IP for anonymous visitors', async () => {
+    const user = { consume: vi.fn(async () => false) };
+    const anonymous = { consume: vi.fn(async () => false) };
+    app = await buildTestApp({ chatQuota: { user, anonymous } });
     const { userId, cookies } = await signIn(app);
-    const res = await app.inject({
+
+    const signedIn = await app.inject({
       method: 'POST',
       url: `/api/snapshots/${SNAPSHOT}/chat`,
       cookies,
       payload: { message: 'hi' },
     });
-    expect(res.statusCode).toBe(429);
-    expect(res.json().error).toMatch(/today's question limit/);
-    expect(consume).toHaveBeenCalledWith(userId);
+    expect(signedIn.statusCode).toBe(429);
+    expect(signedIn.json().error).toMatch(/today's question limit/);
+    expect(user.consume).toHaveBeenCalledWith(userId);
+
+    const visitor = await app.inject({
+      method: 'POST',
+      url: `/api/snapshots/${SNAPSHOT}/chat`,
+      remoteAddress: '203.0.113.7',
+      payload: { message: 'hi' },
+    });
+    expect(visitor.statusCode).toBe(429);
+    expect(visitor.json().error).toMatch(/Sign up to keep asking/);
+    expect(anonymous.consume).toHaveBeenCalledWith('203.0.113.7');
   });
 });

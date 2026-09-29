@@ -1,18 +1,19 @@
 import type { FileEntry, FileResponse } from '@codebase-copilot/shared';
 import { AppError } from '../lib/errors';
 import type { PrismaClient } from '../lib/prisma';
-import { findVisibleSnapshot } from './snapshot-access';
+import { findVisibleSnapshot, type DemoRepositories } from './snapshot-access';
 
 export interface CodeService {
-  listFiles(userId: string, snapshotId: string): Promise<FileEntry[]>;
-  getFile(userId: string, snapshotId: string, path: string): Promise<FileResponse>;
+  /** viewerId is null for anonymous visitors (demo repositories only). */
+  listFiles(viewerId: string | null, snapshotId: string): Promise<FileEntry[]>;
+  getFile(viewerId: string | null, snapshotId: string, path: string): Promise<FileResponse>;
 }
 
 /** Read access to a snapshot's stored files, for the code viewer. */
-export function createCodeService(prisma: PrismaClient): CodeService {
+export function createCodeService(prisma: PrismaClient, demo: DemoRepositories = []): CodeService {
   return {
-    async listFiles(userId, snapshotId) {
-      await findVisibleSnapshot(prisma, userId, snapshotId);
+    async listFiles(viewerId, snapshotId) {
+      await findVisibleSnapshot(prisma, viewerId, snapshotId, demo);
       return prisma.file.findMany({
         where: { snapshotId },
         orderBy: { path: 'asc' },
@@ -20,8 +21,8 @@ export function createCodeService(prisma: PrismaClient): CodeService {
       });
     },
 
-    async getFile(userId, snapshotId, path) {
-      await findVisibleSnapshot(prisma, userId, snapshotId);
+    async getFile(viewerId, snapshotId, path) {
+      await findVisibleSnapshot(prisma, viewerId, snapshotId, demo);
       const file = await prisma.file.findUnique({
         where: { snapshotId_path: { snapshotId, path } },
         include: {

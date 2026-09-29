@@ -19,6 +19,7 @@ import { createAuthService } from './services/auth.service';
 import { createCodeService } from './services/code.service';
 import { createDependencyChecks } from './services/dependency-checks';
 import { createRepositoryService } from './services/repository.service';
+import { parseDemoRepositories } from './services/snapshot-access';
 
 async function main(): Promise<void> {
   const env = parseEnv();
@@ -28,6 +29,7 @@ async function main(): Promise<void> {
   redis.on('error', () => undefined);
   redis.connect().catch(() => undefined);
 
+  const demo = parseDemoRepositories(env.DEMO_REPOSITORIES);
   const queueConnection = createQueueRedis(env.REDIS_URL);
   queueConnection.on('error', () => undefined);
   const queue = createIndexingQueue(queueConnection);
@@ -50,18 +52,23 @@ async function main(): Promise<void> {
     warn: (obj: object, msg?: string) => app.log.warn(obj, msg),
     error: (obj: object, msg?: string) => app.log.error(obj, msg),
   };
+  const repositories = createRepositoryService({
+    prisma,
+    github: createGitHubClient({ token: env.GITHUB_TOKEN }),
+    queue,
+    demo,
+  });
   const app = await buildApp({
     env,
     healthChecks: createDependencyChecks(prisma, redis),
     auth: createAuthService({ users: createUserRepository(prisma), hasher: argon2Hasher }),
-    repositories: createRepositoryService({
-      prisma,
-      github: createGitHubClient({ token: env.GITHUB_TOKEN }),
-      queue,
-    }),
-    chat: createChatService({ prisma, retriever, model: chatModel, logger: appLogger }),
-    code: createCodeService(prisma),
-    chatQuota: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
+    repositories,
+    chat: createChatService({ prisma, retriever, model: chatModel, logger: appLogger, demo }),
+    code: createCodeService(prisma, demo),
+    chatQuota: {
+      user: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
+      anonymous: createDailyQuota(redis, 'demo-chat', env.DEMO_CHAT_DAILY_LIMIT),
+    },
     redis,
   });
 
@@ -96,6 +103,14 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
   await app.listen({ host: env.HOST, port: env.PORT });
+
+  // Index demo repositories in the background; the API is usable meanwhile.
+  if (demo.length) {
+    repositories
+      .seedDemo()
+      .then(() => app.log.info({ demo: demo.length }, 'demo repositories checked'))
+      .catch((err: unknown) => app.log.error({ err }, 'seeding demo repositories failed'));
+  }
 }
 
 main().catch((err: unknown) => {

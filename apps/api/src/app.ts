@@ -30,8 +30,8 @@ export interface AppDeps {
   repositories: RepositoryService;
   chat: ChatService;
   code: CodeService;
-  /** Daily cap on chat answers per user; omitted in tests. */
-  chatQuota?: DailyQuota;
+  /** Daily caps on chat answers (per user, and per IP for anonymous demo visitors); omitted in tests. */
+  chatQuota?: { user: DailyQuota; anonymous: DailyQuota };
   /** Shared rate-limit counters across instances; in-memory when omitted (tests). */
   redis?: Redis;
 }

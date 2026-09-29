@@ -3,11 +3,12 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type { ChatService } from '../chat/chat.service';
 import { AppError } from '../lib/errors';
 import type { DailyQuota } from '../lib/quota';
+import { viewerId } from '../plugins/auth';
 
 export interface ChatRouteOptions {
   chat: ChatService;
-  /** Absent in tests; per-user daily cap on answers otherwise. */
-  quota?: DailyQuota | undefined;
+  /** Daily caps on answers: per user, and per IP for anonymous demo visitors. Absent in tests. */
+  quota?: { user: DailyQuota; anonymous: DailyQuota } | undefined;
 }
 
 type SnapshotParams = { Params: { id: string } };
@@ -23,23 +24,37 @@ async function userKey(request: FastifyRequest): Promise<string> {
   }
 }
 
+/** Anonymous visitors (demo repositories only) get a lower per-minute limit. */
+async function maxPerMinute(request: FastifyRequest): Promise<number> {
+  return (await userKey(request)).startsWith('user:') ? 10 : 4;
+}
+
 export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (app, { chat, quota }) => {
-  app.addHook('preHandler', app.authenticate);
+  // Anonymous visitors may chat about demo repositories; the service enforces which.
+  app.addHook('preHandler', app.identify);
 
   app.post<SnapshotParams>(
     '/api/snapshots/:id/chat',
-    { config: { rateLimit: { max: 10, timeWindow: '1 minute', keyGenerator: userKey } } },
+    {
+      config: { rateLimit: { max: maxPerMinute, timeWindow: '1 minute', keyGenerator: userKey } },
+    },
     async (request, reply) => {
       const { message, sessionId } = chatRequestSchema.parse(request.body);
-      if (quota && !(await quota.consume(request.user.sub))) {
+      const userId = viewerId(request);
+      const allowed = userId
+        ? await quota?.user.consume(userId)
+        : await quota?.anonymous.consume(request.ip);
+      if (allowed === false) {
         throw new AppError(
           429,
-          "You've reached today's question limit. It resets at midnight UTC.",
+          userId
+            ? "You've reached today's question limit. It resets at midnight UTC."
+            : "The demo's daily question limit for your network has been reached. Sign up to keep asking.",
         );
       }
       // Everything that can fail with a status code happens before the stream starts.
       const prepared = await chat.prepare({
-        userId: request.user.sub,
+        userId,
         snapshotId: request.params.id,
         sessionId,
         message,
@@ -70,10 +85,10 @@ export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (app, { ch
   );
 
   app.get<SnapshotParams>('/api/snapshots/:id/chat/sessions', async (request) => ({
-    sessions: await chat.listSessions(request.user.sub, request.params.id),
+    sessions: await chat.listSessions(viewerId(request), request.params.id),
   }));
 
   app.get<SessionParams>('/api/chat/sessions/:sessionId', async (request) =>
-    chat.getSession(request.user.sub, request.params.sessionId),
+    chat.getSession(viewerId(request), request.params.sessionId),
   );
 };

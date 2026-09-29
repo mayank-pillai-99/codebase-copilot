@@ -41,6 +41,12 @@ const envSchema = z.object({
   LLM_MODEL: z.string().default('gemini-flash-latest'),
   // Answers per user per day, protecting the free LLM quota.
   CHAT_DAILY_LIMIT: z.coerce.number().int().positive().default(100),
+
+  // Public demo: comma-separated owner/name repositories anyone can explore without an
+  // account. They're indexed automatically at startup. Empty = no demo.
+  DEMO_REPOSITORIES: z.string().default(''),
+  // Anonymous demo answers per IP per day.
+  DEMO_CHAT_DAILY_LIMIT: z.coerce.number().int().positive().default(20),
 });
 
 export type Env = z.infer<typeof envSchema>;

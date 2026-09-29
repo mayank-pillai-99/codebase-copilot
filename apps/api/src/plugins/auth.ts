@@ -18,6 +18,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     /** preHandler that rejects requests without a valid session with 401. */
     authenticate: (request: FastifyRequest) => Promise<void>;
+    /** preHandler that reads a session if present; anonymous requests continue. */
+    identify: (request: FastifyRequest) => Promise<void>;
   }
   interface FastifyReply {
     /**
@@ -63,6 +65,14 @@ export const authPlugin = fp<AuthPluginOptions>(async (app, opts) => {
     }
   });
 
+  app.decorate('identify', async (request: FastifyRequest) => {
+    try {
+      await request.jwtVerify();
+    } catch {
+      // Anonymous: routes using this hook decide what anonymous visitors may see.
+    }
+  });
+
   app.decorateReply('startSession', async function (this: FastifyReply, userId: string) {
     const token = await this.jwtSign({ sub: userId });
     this.setCookie(SESSION_COOKIE, token, { ...cookieOptions, maxAge: SESSION_TTL_SECONDS });
@@ -72,3 +82,9 @@ export const authPlugin = fp<AuthPluginOptions>(async (app, opts) => {
     return this.clearCookie(SESSION_COOKIE, cookieOptions);
   });
 });
+
+/** The signed-in user's id after `identify`, or null for anonymous visitors. */
+export function viewerId(request: FastifyRequest): string | null {
+  const user = request.user as { sub?: string } | undefined;
+  return user?.sub ?? null;
+}

@@ -9,7 +9,7 @@ import { AppError } from '../lib/errors';
 import type { PrismaClient } from '../lib/prisma';
 import { ChatModelError, type ChatModel } from '../llm/chat-model';
 import type { RetrievedChunk, Retriever } from '../retrieval/types';
-import { findVisibleSnapshot, isUuid } from '../services/snapshot-access';
+import { findVisibleSnapshot, isUuid, type DemoRepositories } from '../services/snapshot-access';
 import { checkCitations } from './citations';
 import { buildPrompt, selectSources } from './prompt';
 
@@ -22,8 +22,9 @@ export interface PreparedChat {
 
 export interface ChatService {
   /** Validates access and records the question. Throws AppError before any streaming starts. */
+  /** userId is null for anonymous visitors, who may only chat about demo repositories. */
   prepare(input: {
-    userId: string;
+    userId: string | null;
     snapshotId: string;
     sessionId?: string | undefined;
     message: string;
@@ -34,9 +35,9 @@ export interface ChatService {
     emit: (event: ChatEvent) => void,
     signal: AbortSignal,
   ): Promise<void>;
-  listSessions(userId: string, snapshotId: string): Promise<ChatSessionSummary[]>;
+  listSessions(userId: string | null, snapshotId: string): Promise<ChatSessionSummary[]>;
   getSession(
-    userId: string,
+    userId: string | null,
     sessionId: string,
   ): Promise<{ session: ChatSessionSummary & { snapshotId: string }; messages: ChatMessageDto[] }>;
 }
@@ -52,10 +53,11 @@ export function createChatService(deps: {
   /** Null when no AI key is configured. */
   model: ChatModel | null;
   logger: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>;
+  demo?: DemoRepositories;
   k?: number;
   historyMessages?: number;
 }): ChatService {
-  const { prisma, retriever, model, logger } = deps;
+  const { prisma, retriever, model, logger, demo = [] } = deps;
   const k = deps.k ?? 8;
   const historyMessages = deps.historyMessages ?? 6;
 
@@ -95,7 +97,7 @@ export function createChatService(deps: {
 
   return {
     async prepare({ userId, snapshotId, sessionId, message }) {
-      const snapshot = await findVisibleSnapshot(prisma, userId, snapshotId);
+      const snapshot = await findVisibleSnapshot(prisma, userId, snapshotId, demo);
       if (snapshot.status !== 'READY') {
         throw new AppError(
           409,
@@ -112,6 +114,7 @@ export function createChatService(deps: {
       let session;
       if (sessionId) {
         session = await prisma.chatSession.findFirst({
+          // Anonymous sessions (userId null) can only be continued anonymously.
           where: { id: sessionId, userId, snapshotId },
         });
         if (!session) throw new AppError(404, 'Conversation not found');
@@ -239,7 +242,9 @@ export function createChatService(deps: {
     },
 
     async listSessions(userId, snapshotId) {
-      await findVisibleSnapshot(prisma, userId, snapshotId);
+      await findVisibleSnapshot(prisma, userId, snapshotId, demo);
+      // Anonymous visitors have no identity to list conversations by.
+      if (!userId) return [];
       const sessions = await prisma.chatSession.findMany({
         where: { userId, snapshotId },
         orderBy: { updatedAt: 'desc' },
@@ -266,6 +271,8 @@ export function createChatService(deps: {
         },
       });
       if (!session) throw new AppError(404, 'Conversation not found');
+      // Anonymous conversations are reachable by id only while their snapshot is a demo.
+      if (!userId) await findVisibleSnapshot(prisma, null, session.snapshotId, demo);
       return {
         session: {
           id: session.id,

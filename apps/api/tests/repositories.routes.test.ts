@@ -34,17 +34,35 @@ async function setup(repositories: Partial<RepositoryService>) {
 }
 
 describe('repository routes', () => {
-  it('require a session', async () => {
+  it('require a session to add or list repositories', async () => {
     app = await buildTestApp();
     for (const [method, url] of [
       ['POST', '/api/repos'],
       ['GET', '/api/repos'],
-      ['GET', `/api/snapshots/${SNAPSHOT_ID}`],
-      ['GET', `/api/snapshots/${SNAPSHOT_ID}/routes`],
     ] as const) {
       const res = await app.inject({ method, url, payload: method === 'POST' ? {} : undefined });
       expect(res.statusCode, `${method} ${url}`).toBe(401);
     }
+  });
+
+  it('pass anonymous snapshot reads to the service as viewer null (demo repositories)', async () => {
+    const getSnapshot = vi.fn(async () => snapshot({ status: 'READY' }));
+    const listRoutes = vi.fn(async () => []);
+    app = await buildTestApp({
+      repositories: { ...unusedRepositories, getSnapshot, listRoutes },
+    });
+    const one = await app.inject({ method: 'GET', url: `/api/snapshots/${SNAPSHOT_ID}` });
+    expect(one.statusCode).toBe(200);
+    expect(getSnapshot).toHaveBeenCalledWith(null, SNAPSHOT_ID);
+    await app.inject({ method: 'GET', url: `/api/snapshots/${SNAPSHOT_ID}/routes` });
+    expect(listRoutes).toHaveBeenCalledWith(null, SNAPSHOT_ID);
+  });
+
+  it('GET /api/demo is public', async () => {
+    app = await buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/demo' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ repositories: [] });
   });
 
   it('POST /api/repos queues indexing and answers 202 with the snapshot', async () => {

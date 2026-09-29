@@ -10,14 +10,24 @@ import type { GitHubClient } from '../github/client';
 import { AppError } from '../lib/errors';
 import type { PrismaClient } from '../lib/prisma';
 import type { IndexingQueue } from '../queue/indexing-queue';
-import { findVisibleSnapshot, snapshotInclude } from './snapshot-access';
+import {
+  demoRepositoryFilter,
+  findVisibleSnapshot,
+  snapshotInclude,
+  type DemoRepositories,
+} from './snapshot-access';
 
 export interface RepositoryService {
   /** Resolves the URL to a commit and queues indexing unless that commit is already indexed. */
   addRepository(userId: string, url: string): Promise<SnapshotDto>;
   listRepositories(userId: string): Promise<RepositorySummary[]>;
-  getSnapshot(userId: string, snapshotId: string): Promise<SnapshotDto>;
-  listRoutes(userId: string, snapshotId: string): Promise<RouteSummary[]>;
+  /** viewerId is null for anonymous visitors (demo repositories only). */
+  getSnapshot(viewerId: string | null, snapshotId: string): Promise<SnapshotDto>;
+  listRoutes(viewerId: string | null, snapshotId: string): Promise<RouteSummary[]>;
+  /** Demo repositories with their latest READY snapshot, for the landing page. */
+  listDemo(): Promise<RepositorySummary[]>;
+  /** Makes sure every demo repository has a snapshot, queuing indexing where needed. */
+  seedDemo(): Promise<void>;
 }
 
 type SnapshotRow = {
@@ -39,10 +49,11 @@ export function createRepositoryService(deps: {
   queue: IndexingQueue;
   /** How long to wait for Redis before telling the user to try again. */
   enqueueTimeoutMs?: number;
+  demo?: DemoRepositories;
 }): RepositoryService {
-  const { prisma, github, queue, enqueueTimeoutMs = 5_000 } = deps;
-  const findVisible = (userId: string, snapshotId: string) =>
-    findVisibleSnapshot(prisma, userId, snapshotId);
+  const { prisma, github, queue, enqueueTimeoutMs = 5_000, demo = [] } = deps;
+  const findVisible = (viewerId: string | null, snapshotId: string) =>
+    findVisibleSnapshot(prisma, viewerId, snapshotId, demo);
 
   async function enqueue(snapshotId: string) {
     let timer: NodeJS.Timeout | undefined;
@@ -127,12 +138,61 @@ export function createRepositoryService(deps: {
       }));
     },
 
-    async getSnapshot(userId, snapshotId) {
-      return toSnapshotDto(await findVisible(userId, snapshotId));
+    async getSnapshot(viewerId, snapshotId) {
+      return toSnapshotDto(await findVisible(viewerId, snapshotId));
     },
 
-    async listRoutes(userId, snapshotId) {
-      await findVisible(userId, snapshotId);
+    async listDemo() {
+      if (demo.length === 0) return [];
+      const repositories = await prisma.repository.findMany({
+        where: { OR: demoRepositoryFilter(demo) },
+        include: {
+          snapshots: {
+            where: { status: 'READY' },
+            orderBy: { readyAt: 'desc' },
+            take: 1,
+            include: snapshotInclude,
+          },
+        },
+      });
+      return repositories
+        .filter((r) => r.snapshots.length > 0)
+        .map((r) => ({
+          id: r.id,
+          owner: r.owner,
+          name: r.name,
+          defaultBranch: r.defaultBranch,
+          latestSnapshot: toSnapshotDto(r.snapshots[0]!),
+        }));
+    },
+
+    async seedDemo() {
+      for (const { owner, name } of demo) {
+        const existing = await prisma.repository.findFirst({
+          where: { OR: demoRepositoryFilter([{ owner, name }]) },
+          include: { snapshots: { where: { status: { not: 'FAILED' } }, take: 1 } },
+        });
+        // Demo content stays pinned once indexed; nothing to do if a snapshot exists or is underway.
+        if (existing?.snapshots.length) continue;
+
+        const meta = await github.getRepository(owner, name);
+        const commitSha = await github.resolveCommit(meta.owner, meta.name, meta.defaultBranch);
+        const repository = await prisma.repository.upsert({
+          where: { owner_name: { owner: meta.owner, name: meta.name } },
+          create: { owner: meta.owner, name: meta.name, defaultBranch: meta.defaultBranch },
+          update: {},
+        });
+        const snapshot = await prisma.snapshot.upsert({
+          where: { repositoryId_commitSha: { repositoryId: repository.id, commitSha } },
+          create: { repositoryId: repository.id, commitSha, ref: meta.defaultBranch },
+          update: { status: 'QUEUED', failureReason: null },
+        });
+        await queue.enqueue(snapshot.id);
+      }
+    },
+
+    async listRoutes(viewerId, snapshotId) {
+      await findVisible(viewerId, snapshotId);
       const routes = await prisma.route.findMany({
         where: { snapshotId },
         orderBy: [{ path: 'asc' }, { method: 'asc' }],

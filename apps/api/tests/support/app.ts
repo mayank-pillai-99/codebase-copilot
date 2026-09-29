@@ -34,6 +34,8 @@ export const unusedRepositories: RepositoryService = {
     throw new AppError(404, 'Not found');
   },
   listRoutes: async () => [],
+  listDemo: async () => [],
+  seedDemo: async () => undefined,
 };
 
 /** Chat service for tests that don't exercise it. */
