@@ -30,6 +30,10 @@ async function main(): Promise<void> {
   };
   process.once('SIGINT', () => void shutdown('SIGINT'));
   process.once('SIGTERM', () => void shutdown('SIGTERM'));
+  // Keep indexing through stray third-party rejections instead of dropping the current job.
+  process.on('unhandledRejection', (reason) => {
+    logger.error({ err: reason }, 'unhandled promise rejection');
+  });
 }
 
 main().catch((err: unknown) => {

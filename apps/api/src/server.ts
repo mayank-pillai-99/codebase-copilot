@@ -105,6 +105,11 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  // A stray rejection from a third-party client (e.g. an aborted model stream) would
+  // otherwise kill every in-flight request and indexing job. Log it loudly and keep serving.
+  process.on('unhandledRejection', (reason) => {
+    app.log.error({ err: reason }, 'unhandled promise rejection');
+  });
 
   await app.listen({ host: env.HOST, port: env.PORT });
 
