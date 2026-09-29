@@ -170,10 +170,18 @@ export function createRepositoryService(deps: {
       for (const { owner, name } of demo) {
         const existing = await prisma.repository.findFirst({
           where: { OR: demoRepositoryFilter([{ owner, name }]) },
-          include: { snapshots: { where: { status: { not: 'FAILED' } }, take: 1 } },
+          include: { snapshots: { where: { status: { not: 'FAILED' } } } },
         });
-        // Demo content stays pinned once indexed; nothing to do if a snapshot exists or is underway.
-        if (existing?.snapshots.length) continue;
+        const snapshots = existing?.snapshots ?? [];
+        // Demo content stays pinned once indexed.
+        if (snapshots.some((s) => s.status === 'READY')) continue;
+        const unfinished = snapshots[0];
+        if (unfinished) {
+          // Its job may never have been queued (Redis was down) or may have been lost.
+          // enqueue() is deduplicated by snapshot id, so this is safe if it is running.
+          await queue.enqueue(unfinished.id);
+          continue;
+        }
 
         const meta = await github.getRepository(owner, name);
         const commitSha = await github.resolveCommit(meta.owner, meta.name, meta.defaultBranch);

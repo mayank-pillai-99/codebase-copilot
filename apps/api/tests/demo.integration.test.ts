@@ -67,11 +67,14 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('demo mode (integration)
       demo,
     });
 
-  it('seeds a snapshot once per demo repository and lists it only when READY', async () => {
+  it('creates one snapshot per demo repository and lists it only when READY', async () => {
     const service = repositories();
     await service.seedDemo();
     await service.seedDemo();
-    expect(enqueue).toHaveBeenCalledTimes(1);
+    // One snapshot; the second run re-queues it because it isn't indexed yet (the real
+    // queue deduplicates by snapshot id).
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    expect(new Set(enqueue.mock.calls.map(([id]) => id)).size).toBe(1);
     expect(await service.listDemo()).toEqual([]);
 
     const snapshotId = enqueue.mock.calls[0]![0];
@@ -94,6 +97,25 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('demo mode (integration)
     expect(listed.map((r) => [r.owner, r.name, r.latestSnapshot?.id])).toEqual([
       [owner, 'showcase', snapshotId],
     ]);
+  });
+
+  it('re-queues a demo snapshot that was created but never indexed', async () => {
+    // As after a boot where Redis was unreachable: the snapshot exists, its job doesn't.
+    const stuckDemo = parseDemoRepositories(`${owner}/stuck`);
+    const repository = await prisma.repository.create({
+      data: { owner, name: 'stuck', defaultBranch: 'main' },
+    });
+    const stuck = await prisma.snapshot.create({
+      data: { repositoryId: repository.id, commitSha: 'c'.repeat(40), ref: 'main' },
+    });
+    const requeue = vi.fn(async (_snapshotId: string) => undefined);
+    await createRepositoryService({
+      prisma,
+      github,
+      queue: { enqueue: requeue, close: async () => undefined },
+      demo: stuckDemo,
+    }).seedDemo();
+    expect(requeue).toHaveBeenCalledWith(stuck.id);
   });
 
   it('lets anyone read and chat about demo snapshots, anonymously too', async () => {
