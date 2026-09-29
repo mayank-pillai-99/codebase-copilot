@@ -113,7 +113,7 @@ export async function createCodeParser(): Promise<CodeParser> {
 
   return {
     withTree,
-    parse: (source, language) => withTree(source, language, (root) => extract(root)),
+    parse: (source, language) => withTree(source, language, (root) => extractFile(root)),
   };
 }
 
@@ -123,7 +123,7 @@ const MAX_SIGNATURE = 300;
 const MAX_DOC = 1_000;
 const MAX_CALLEE_TEXT = 120;
 
-function extract(root: Node): ParsedFile {
+export function extractFile(root: Node): ParsedFile {
   const symbols: ParsedSymbol[] = [];
   const imports: ParsedImport[] = [];
   const localExports = new Map<string, string>(); // local name → exported name
