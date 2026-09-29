@@ -6,7 +6,7 @@ Codebase Copilot: paste a GitHub URL, get an onboarding guide to that codebase, 
 
 ## Current status
 
-Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Milestone 5 (retrieval evaluation, ADR 0005) is in progress: dataset, runner, `/eval` page, search endpoint. Next: Milestone 6 (agentic retriever). See `docs/SPEC.md` §21.
+Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Milestone 5 (retrieval evaluation, ADR 0005) is built; its first published run is pending the free embedding quota. Milestone 7 is done (ADR 0006): architecture map and request tracing, deterministic only. Next: Milestone 6 (agentic retriever) once evaluation results exist. See `docs/SPEC.md` §21.
 
 ## Stack
 
@@ -46,6 +46,7 @@ docker compose --profile app up --build   # whole stack in containers
 - Retrieval and chat: `src/retrieval/` (vector, fulltext and hybrid, all behind the `Retriever` interface), `src/chat/` (prompt, citation checks, service), `src/llm/` (Gemini embeddings as a LangChain `Embeddings`; chat through `GeminiChat`, our LangChain `BaseChatModel` over the REST API). Tests use `hashingEmbedder()` and scripted chat models, never the network.
 - Access to snapshot data goes through `findVisibleSnapshot()` in `src/services/snapshot-access.ts`: tracked by the viewer, or listed in `DEMO_REPOSITORIES`. Routes that demo visitors may use take `app.identify` (optional auth) and `viewerId(request)`.
 - Without `GEMINI_API_KEY`, indexing still works (full-text search only) and chat answers 503.
+- Analysis: `src/analysis/` (components, integrations, architecture; pure functions) with `architecture.service.ts` (computed on first request, cached in `snapshot_analyses`; bump `ARCHITECTURE_VERSION` when the analysis changes) and `trace.service.ts` (BFS over resolved calls from a route handler).
 - Evaluation: runner in `src/eval/` (`metrics.ts`, `dataset.ts`, `runner.ts`, `cli.ts`), datasets in `eval/datasets/`, committed runs in `eval/results/` (imported into `eval_runs` at API startup; `/eval` shows the latest). The free Gemini tier rate-limits bulk embedding, so the runner embeds with `embedMissingChunks` (resumable). Never hand-edit result files or tune retrievers on individual questions.
 - Without `GITHUB_TOKEN`, GitHub allows 60 API requests/hour per IP. For local testing, pass one in the environment rather than writing it to `.env`, e.g. `GITHUB_TOKEN=$(gh auth token) npm run dev`.
 

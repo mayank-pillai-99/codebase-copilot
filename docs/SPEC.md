@@ -181,7 +181,7 @@ Deterministic detectors, each a small tested module:
 
 - **Routes** (Milestone 3): Express/Fastify/Koa style `app|router.(get|post|put|patch|delete|all)(path, …handlers)`, including `router.route('/x').get(h)` chains and wrapped handlers (`asyncHandler(fn)`); Next.js `app/**/route.ts` and `pages/api/**`. HTTP-client calls such as `axios.get('/x', config)` are excluded. Record method, path, handler (resolved across files where possible), file, lines.
 
-Integration and data-layer detection moves to Milestone 7, where the architecture map uses it:
+Integration and data-layer detection (Milestone 7, `src/analysis/integrations.ts`) feeds the architecture map:
 
 - **External integrations:** from `package.json` dependencies and import sites (e.g. `stripe`, `@prisma/client`, `pg`, `redis`, `openai`, `aws-sdk`, `nodemailer`), plus env-var names referenced (`process.env.X`).
 - **Data layer:** Prisma schema models, ORM model definitions, SQL migration folders.
@@ -311,12 +311,14 @@ Per answer (on a subset):
 1. Build the **module graph** from resolved import edges; aggregate file-level edges to directory/module level.
 2. Group modules into components using directory structure plus graph community detection (keep it simple — e.g. directory-based grouping refined by connectivity).
 3. Attach detected routes, data layer, and external integrations (§5.4) as nodes.
-4. The **LLM only names and describes** the components given the deterministic structure and representative code. It does not invent nodes or edges.
-5. Render interactively in the frontend (React Flow or Mermaid). Every node links to its files; every edge can show the import statements that justify it.
+4. _(Deferred.)_ An LLM may later name and describe the components given the deterministic structure and representative code. It must not invent nodes or edges. Milestone 7 ships the map without it (ADR 0006).
+5. Render interactively in the frontend (React Flow, laid out with dagre). Every node links to its files; every edge shows the import statements that justify it.
+
+The map is computed on first request from the stored code graph and cached per snapshot in `snapshot_analyses` with a version number, so existing snapshots need no re-indexing (ADR 0006).
 
 ### 9.2 Request tracing
 
-From a route's handler symbol, BFS over the call graph (depth-limited, default 4), collecting spans. The LLM narrates the flow with citations. Edges from unresolved/approximate calls are visually marked as uncertain.
+From a route's handler (a named symbol, or the lines of an inline handler), BFS over resolved call edges (depth-limited, default 4, at most 40 nodes). A constructed class is followed into its constructor only. Unresolved calls are listed but not followed. An LLM narration with citations is deferred (ADR 0006).
 
 ### 9.3 Onboarding guide
 
@@ -391,7 +393,7 @@ ImportEdge        id, snapshotId, fromFileId, toFileId?, specifier, importedName
 CallEdge          id, snapshotId, fileId, fromSymbolId?, toSymbolId?, calleeName, calleeText, line, resolved
 Route             id, snapshotId, fileId, method, path, framework, handlerName?, handlerSymbolId?,
                   startLine, endLine
-Integration       id, snapshotId, kind, name, evidence (json)                   (Milestone 7)
+SnapshotAnalysis  snapshotId, kind, version, data (json), createdAt          (cached derived analyses, e.g. the architecture map; ADR 0006)
 Chunk           id, snapshotId, fileId, symbolId?, kind, startLine, endLine, content,
                 embedding  Unsupported("vector(N)"), tsv Unsupported("tsvector"), embeddingModel
 OnboardingGuide id, snapshotId, content (json), model, createdAt
@@ -444,11 +446,11 @@ Built so far (✓) and planned. "public" means readable without a session for de
 ✓ GET    /api/snapshots/:id/chat/sessions      the user's conversations
 ✓ GET    /api/chat/sessions/:sessionId         messages + validated citations
 ✓ POST   /api/snapshots/:id/search             { query, retriever?, k? }          (public for demos)
+✓ GET    /api/snapshots/:id/architecture       components, imports, integrations  (public for demos)
+✓ GET    /api/snapshots/:id/routes/:routeId/trace   call tree from the handler   (public for demos)
 ✓ GET    /api/eval/latest                      newest retrieval evaluation run   (public)
 
   GET    /api/snapshots/:id/guide              onboarding guide                   (Milestone 9)
-  GET    /api/snapshots/:id/architecture       nodes + edges                      (Milestone 7)
-  POST   /api/snapshots/:id/trace              { routeId } → SSE                  (Milestone 7)
   POST   /api/snapshots/:id/locate-issue       { issueUrl | title+body }          (Milestone 8)
 
 ✓ GET    /api/health                           dependency status (503 if degraded)
@@ -469,12 +471,12 @@ Pages:
 /                         landing: what it does + demo repos (no login needed)
 /login, /register
 /repos                    my repos + demo repos
-/repos/[snapshotId]       onboarding guide (default tab)
-   ?tab=architecture      interactive architecture map
-   ?tab=code              file tree + code viewer (syntax highlighting, line anchors)
-   ?tab=chat              streamed chat with clickable citations
-   ?tab=routes            route list + request tracing
-   ?tab=issues            issue locator
+/repos/[snapshotId]       overview (the onboarding guide becomes the default tab in Milestone 9)
+   /architecture          interactive architecture map
+   /routes?route=<id>     route list + request tracing
+   /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors)
+   /chat                  streamed chat with clickable citations
+   /issues                issue locator (Milestone 8)
 /eval                     public evaluation results
 ```
 
