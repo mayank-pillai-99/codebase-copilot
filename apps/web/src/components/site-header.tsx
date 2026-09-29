@@ -1,51 +1,43 @@
 import Link from 'next/link';
 import { getCurrentUser } from '@/lib/session';
+import { LogoMark } from './logo';
 import { LogoutButton } from './logout-button';
+import { NavLink } from './nav-link';
 
 export async function SiteHeader() {
   const user = await getCurrentUser();
 
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800">
-      <nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
-          Codebase Copilot
+    <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-zinc-50/80 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/75">
+      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+        <Link
+          href="/"
+          className="group flex items-center gap-2 text-sm font-semibold tracking-tight"
+        >
+          <LogoMark className="size-6 transition-transform duration-300 group-hover:rotate-[8deg]" />
+          <span className="hidden min-[380px]:inline">Codebase Copilot</span>
         </Link>
-        {user ? (
-          <div className="flex min-w-0 items-center gap-4">
-            <Link href="/eval" className="text-sm font-medium">
-              Evaluation
-            </Link>
-            <Link href="/repos" className="text-sm font-medium">
-              Repositories
-            </Link>
-            <span className="hidden truncate text-sm text-zinc-500 sm:inline dark:text-zinc-400">
-              {user.email}
-            </span>
-            <LogoutButton />
-          </div>
-        ) : (
-          <div className="flex items-center gap-4 text-sm">
-            <Link
-              href="/eval"
-              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
-              Evaluation
-            </Link>
-            <Link
-              href="/login"
-              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
-              Sign up
-            </Link>
-          </div>
-        )}
+        <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+          <span className="hidden sm:contents">
+            <NavLink href="/eval">Evaluation</NavLink>
+          </span>
+          {user ? (
+            <>
+              <NavLink href="/repos">Repositories</NavLink>
+              <span className="hidden max-w-48 truncate text-sm text-zinc-500 md:inline dark:text-zinc-400">
+                {user.email}
+              </span>
+              <LogoutButton />
+            </>
+          ) : (
+            <>
+              <NavLink href="/login">Log in</NavLink>
+              <Link href="/register" className="btn-primary px-3 py-1.5 whitespace-nowrap">
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
       </nav>
     </header>
   );
