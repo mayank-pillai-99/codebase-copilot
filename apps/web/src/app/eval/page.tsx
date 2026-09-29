@@ -133,7 +133,7 @@ function Results({ run }: { run: EvalRun }) {
             <li key={repo}>
               <a
                 href={`https://github.com/${repo}/tree/${sha}`}
-                className="font-medium text-sky-700 hover:underline dark:text-sky-400"
+                className="font-medium text-brand-700 hover:underline dark:text-brand-400"
               >
                 {repo} @ {shortSha(sha)}
               </a>{' '}
@@ -181,7 +181,7 @@ function Results({ run }: { run: EvalRun }) {
             <QuestionProvenance config={config} /> The questions and answer files are{' '}
             <a
               href={DATASET_URL}
-              className="font-medium text-sky-700 hover:underline dark:text-sky-400"
+              className="font-medium text-brand-700 hover:underline dark:text-brand-400"
             >
               in the repository
             </a>{' '}
@@ -336,7 +336,7 @@ function QuestionGroup({
                       {i > 0 && ', '}
                       <a
                         href={githubBlobUrl({ owner, name }, sha, path)}
-                        className="font-mono text-sky-700 hover:underline dark:text-sky-400"
+                        className="font-mono text-brand-700 hover:underline dark:text-brand-400"
                       >
                         {path}
                       </a>

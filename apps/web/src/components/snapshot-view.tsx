@@ -12,7 +12,8 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { codeHref, describeSkipped, isSupportingPath, percent } from '@/lib/format';
+import { codeHref, describeSkipped, isSupportingPath } from '@/lib/format';
+import { CountUp } from './count-up';
 import { StatusBadge } from './status-badge';
 
 const POLL_MS = 1_500;
@@ -49,9 +50,12 @@ export function SnapshotView({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Status <StatusBadge status={snapshot.status} />
-      </div>
+      {/* The page header shows a settled status; this live row is for indexing in progress. */}
+      {!isSettled(initial.status) && (
+        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Status <StatusBadge status={snapshot.status} />
+        </div>
+      )}
 
       {snapshot.status === 'FAILED' ? (
         <FailurePanel snapshot={snapshot} />
@@ -97,7 +101,7 @@ function ProgressPanel({ snapshot }: { snapshot: SnapshotDto }) {
                 i < current
                   ? 'bg-emerald-500'
                   : i === current
-                    ? 'animate-pulse bg-sky-500'
+                    ? 'animate-pulse bg-brand-500'
                     : 'bg-zinc-300 dark:bg-zinc-700'
               }`}
             />
@@ -113,7 +117,7 @@ function ProgressPanel({ snapshot }: { snapshot: SnapshotDto }) {
         <div className="mt-4">
           <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
-              className="h-full bg-sky-500 transition-all"
+              className="h-full bg-brand-500 transition-all"
               style={{ width: `${Math.round(fraction * 100)}%` }}
             />
           </div>
@@ -174,38 +178,44 @@ function FailurePanel({ snapshot }: { snapshot: SnapshotDto }) {
 }
 
 function StatsGrid({ stats }: { stats: SnapshotStats }) {
-  const items = [
+  const items: [label: string, value: number | null, suffix: string, detail: string][] = [
     [
       'Source files',
-      stats.files.code.toLocaleString('en-US'),
+      stats.files.code,
+      '',
       `${stats.files.docs} docs, ${stats.files.config} config`,
     ],
-    ['Symbols', stats.symbols.toLocaleString('en-US'), 'functions, classes, methods, types'],
+    ['Symbols', stats.symbols, '', 'functions, classes, methods, types'],
     [
       'Imports',
-      stats.imports.total.toLocaleString('en-US'),
+      stats.imports.total,
+      '',
       `${stats.imports.internal} within the repo, ${stats.imports.external} packages`,
     ],
     [
       'Calls linked',
-      percent(stats.calls.resolved, stats.calls.total),
+      stats.calls.total ? Math.round((stats.calls.resolved / stats.calls.total) * 100) : null,
+      '%',
       `${stats.calls.resolved.toLocaleString('en-US')} of ${stats.calls.total.toLocaleString('en-US')} call sites`,
     ],
-    ['Routes', stats.routes.toLocaleString('en-US'), 'HTTP endpoints detected'],
-    ['Search index', stats.chunks?.toLocaleString('en-US') ?? '—', searchIndexDetail(stats)],
-  ] as const;
+    ['Routes', stats.routes, '', 'HTTP endpoints detected'],
+    ['Search index', stats.chunks ?? null, '', searchIndexDetail(stats)],
+  ];
   const skipped = describeSkipped(stats.skipped);
 
   return (
     <section className="flex flex-col gap-3">
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {items.map(([label, value, detail]) => (
+        {items.map(([label, value, suffix, detail], index) => (
           <div
             key={label}
-            className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+            className="card card-hover animate-fade-up p-4"
+            style={{ animationDelay: `${index * 60}ms` }}
           >
             <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</dt>
-            <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums">
+              {value === null ? '—' : <CountUp value={value} suffix={suffix} />}
+            </dd>
             <dd className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{detail}</dd>
           </div>
         ))}

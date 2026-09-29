@@ -158,7 +158,7 @@ function TraceView({ snapshotId, trace }: { snapshotId: string; trace: TraceResp
           Registered in{' '}
           <Link
             href={codeHref(snapshotId, trace.route.file, trace.route.startLine)}
-            className="font-mono text-sky-700 hover:underline dark:text-sky-400"
+            className="font-mono text-brand-700 hover:underline dark:text-brand-400"
           >
             {trace.route.file}:{trace.route.startLine}
           </Link>
@@ -191,7 +191,7 @@ function NodeView({
         <span className="text-xs text-zinc-500 dark:text-zinc-400">{node.kind}</span>
         <Link
           href={codeHref(snapshotId, node.path, node.startLine, node.endLine)}
-          className="font-mono text-xs break-all text-sky-700 hover:underline dark:text-sky-400"
+          className="font-mono text-xs break-all text-brand-700 hover:underline dark:text-brand-400"
         >
           {node.path}:{node.startLine}–{node.endLine}
         </Link>
@@ -215,7 +215,7 @@ function NodeView({
                 <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
                   <Link
                     href={codeHref(snapshotId, node.path, call.line)}
-                    className="w-12 shrink-0 font-mono text-zinc-400 hover:text-sky-700 dark:hover:text-sky-400"
+                    className="w-12 shrink-0 font-mono text-zinc-400 hover:text-brand-700 dark:hover:text-brand-400"
                   >
                     L{call.line}
                   </Link>

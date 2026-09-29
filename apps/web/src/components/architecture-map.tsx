@@ -48,7 +48,7 @@ function Box({ data, selected }: NodeProps<Node<{ node: MapNode; selected: boole
     <div
       style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}
       className={`flex flex-col justify-center rounded-lg border px-3 text-left shadow-sm ${tone} ${
-        selected || data.selected ? 'ring-2 ring-sky-500' : ''
+        selected || data.selected ? 'ring-2 ring-brand-500' : ''
       }`}
     >
       <Handle type="target" position={Position.Top} style={hidden} isConnectable={false} />
@@ -121,7 +121,7 @@ export function ArchitectureMap({
       style: {
         strokeWidth: focus ? 2 : 1.25,
         strokeDasharray: edge.kind === 'uses' ? '5 4' : edge.kind === 'stores' ? '2 3' : undefined,
-        stroke: focus ? '#0284c7' : undefined,
+        stroke: focus ? 'var(--color-brand-600)' : undefined,
         opacity: faded ? 0.15 : 1,
       },
       data: { edge },
@@ -218,7 +218,7 @@ function Details({
   const fileLink = (file: string, line?: number, text?: ReactNode) => (
     <Link
       href={codeHref(snapshotId, file, line)}
-      className="font-mono text-xs break-all text-sky-700 hover:underline dark:text-sky-400"
+      className="font-mono text-xs break-all text-brand-700 hover:underline dark:text-brand-400"
     >
       {text ?? (line ? `${file}:${line}` : file)}
     </Link>

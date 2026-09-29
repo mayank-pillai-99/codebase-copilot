@@ -197,8 +197,11 @@ export function ChatPanel({
             setSessionId(null);
             setMessages([]);
           }}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-center text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="btn-secondary w-full"
         >
+          <span aria-hidden className="text-base leading-none">
+            +
+          </span>
           New conversation
         </Link>
         {sessions.length > 0 && (
@@ -208,9 +211,9 @@ export function ChatPanel({
                 <Link
                   href={`/repos/${snapshotId}/chat?session=${s.id}`}
                   aria-current={s.id === sessionId ? 'page' : undefined}
-                  className={`block truncate rounded px-2 py-1 text-xs ${
+                  className={`block truncate rounded-md px-2.5 py-1.5 text-xs transition-colors ${
                     s.id === sessionId
-                      ? 'bg-zinc-200 dark:bg-zinc-800'
+                      ? 'bg-brand-50 font-medium text-brand-900 dark:bg-brand-950 dark:text-brand-200'
                       : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900'
                   }`}
                   title={s.title}
@@ -225,18 +228,39 @@ export function ChatPanel({
 
       <section className="flex min-w-0 flex-col gap-4">
         {messages.length === 0 ? (
-          <div className="flex flex-col gap-3 rounded-xl border border-dashed border-zinc-300 p-6 dark:border-zinc-700">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Ask anything about this codebase. Answers cite the exact files and lines they come
-              from.
-            </p>
+          <div className="card dot-grid flex flex-col gap-4 p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:ring-brand-800">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                  className="size-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 5h16v10H9l-5 4z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              <div>
+                <p className="font-medium">Ask anything about this codebase</p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Answers cite the exact files and lines they come from. Click a citation to open
+                  the code.
+                </p>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
-              {STARTERS.map((q) => (
+              {STARTERS.map((q, i) => (
                 <button
                   key={q}
                   type="button"
                   onClick={() => void send(q)}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                  style={{ animationDelay: `${120 + i * 70}ms` }}
+                  className="animate-fade-up rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-left text-xs transition hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-800 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-brand-600 dark:hover:text-brand-300"
                 >
                   {q}
                 </button>
@@ -246,7 +270,7 @@ export function ChatPanel({
         ) : (
           <ol className="flex flex-col gap-5" aria-live="polite">
             {messages.map((m) => (
-              <li key={m.id}>
+              <li key={m.id} className="animate-fade-up">
                 {m.role === 'user' ? (
                   <UserBubble text={m.content} />
                 ) : (
@@ -267,7 +291,7 @@ export function ChatPanel({
               {formError}
             </p>
           )}
-          <div className="flex items-end gap-2 rounded-xl border border-zinc-300 bg-white p-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="flex items-end gap-2 rounded-xl border border-zinc-300 bg-white p-2 shadow-lg shadow-zinc-900/5 transition focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-500/15 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/20">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -282,17 +306,26 @@ export function ChatPanel({
               <button
                 type="button"
                 onClick={() => abortRef.current?.abort()}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+                className="btn-secondary px-3 py-1.5"
               >
+                <span aria-hidden className="size-2.5 rounded-[2px] bg-current" />
                 Stop
               </button>
             ) : (
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
-              >
+              <button type="submit" disabled={!input.trim()} className="btn-primary px-3 py-1.5">
                 Ask
+                <svg
+                  viewBox="0 0 16 16"
+                  aria-hidden
+                  className="size-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M8 13V3M4 7l4-4 4 4" />
+                </svg>
               </button>
             )}
           </div>
@@ -304,7 +337,7 @@ export function ChatPanel({
 
 function UserBubble({ text }: { text: string }) {
   return (
-    <div className="ml-auto max-w-[85%] rounded-2xl bg-zinc-900 px-4 py-2 text-sm whitespace-pre-wrap text-white dark:bg-zinc-100 dark:text-zinc-900">
+    <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-zinc-900 px-4 py-2 text-sm whitespace-pre-wrap text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-900">
       {text}
     </div>
   );
@@ -317,15 +350,26 @@ function Answer({ m, snapshotId }: { m: UiMessage; snapshotId: string }) {
   );
 
   return (
-    <article className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+    <article className="card flex flex-col gap-3 p-4">
       {m.content ? (
-        <AnswerText text={m.content} snapshotId={snapshotId} targets={targets} />
+        <div className={m.streaming ? 'streaming' : undefined}>
+          <AnswerText text={m.content} snapshotId={snapshotId} targets={targets} />
+        </div>
       ) : m.streaming ? (
-        <p className="animate-pulse text-sm text-zinc-500">
-          {m.sources.length
-            ? `Reading ${m.sources.length} code excerpts…`
-            : 'Searching the codebase…'}
-        </p>
+        <div className="flex flex-col gap-2.5" role="status">
+          <p className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <span aria-hidden className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping-slow rounded-full bg-brand-500" />
+              <span className="relative inline-flex size-2 rounded-full bg-brand-500" />
+            </span>
+            {m.sources.length
+              ? `Reading ${m.sources.length} code excerpts…`
+              : 'Searching the codebase…'}
+          </p>
+          <div className="skeleton h-3 w-11/12" />
+          <div className="skeleton h-3 w-4/5" />
+          <div className="skeleton h-3 w-2/3" />
+        </div>
       ) : null}
       {m.error && <p className="text-sm text-red-700 dark:text-red-400">{m.error}</p>}
       {m.flagged && (

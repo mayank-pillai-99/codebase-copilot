@@ -43,7 +43,7 @@ export function ServerWaking() {
       role="status"
       className="flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <span aria-hidden className="size-3 animate-ping rounded-full bg-sky-500" />
+      <span aria-hidden className="size-3 animate-ping rounded-full bg-brand-500" />
       <p className="font-medium">Waking up the server…</p>
       <p className="max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
         This demo runs on free hosting that sleeps when idle. It usually takes under a minute

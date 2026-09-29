@@ -40,13 +40,13 @@ export function AnswerText({
             {part.markers.map((marker) => {
               const target = targets.get(marker);
               const className =
-                'mx-0.5 inline-block rounded bg-sky-100 px-1 align-super text-[0.7em] font-semibold leading-tight text-sky-800 dark:bg-sky-950 dark:text-sky-300';
+                'mx-0.5 inline-block rounded bg-brand-100 px-1 align-super text-[0.7em] font-semibold leading-tight text-brand-800 dark:bg-brand-950 dark:text-brand-300';
               return target ? (
                 <Link
                   key={marker}
                   href={codeHref(snapshotId, target.path, target.startLine, target.endLine)}
                   title={`${target.path}:${target.startLine}-${target.endLine}${target.label ? ` (${target.label})` : ''}`}
-                  className={`${className} hover:bg-sky-200 dark:hover:bg-sky-900`}
+                  className={`${className} hover:bg-brand-200 dark:hover:bg-brand-900`}
                 >
                   {marker}
                 </Link>
