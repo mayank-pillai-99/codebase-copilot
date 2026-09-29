@@ -22,7 +22,8 @@
     "infra:up": "docker compose up -d postgres redis",
     "infra:down": "docker compose down",
     "db:migrate": "npm run db:migrate --workspace @codebase-copilot/api",
-    "db:generate": "npm run db:generate --workspace @codebase-copilot/api"
+    "db:generate": "npm run db:generate --workspace @codebase-copilot/api",
+    "eval": "npm run eval --workspace @codebase-copilot/api --"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",

@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev && prisma generate",
     "db:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "db:check-drift": "node scripts/check-drift.mjs"
+    "db:check-drift": "node scripts/check-drift.mjs",
+    "eval": "tsx --env-file-if-exists=../../.env src/eval/cli.ts"
   },
   "dependencies": {
     "@codebase-copilot/shared": "*",
