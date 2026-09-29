@@ -1,6 +1,7 @@
 /**
- * An error whose message is safe to show to the client. The global error handler
- * sends `message` for 4xx status codes; anything else becomes a generic 500.
+ * An error whose message is written for users and safe to show at any status code
+ * (e.g. 503 "GitHub rate limit reached"). Any other error that reaches the global
+ * handler becomes a generic 500 and is logged.
  */
 export class AppError extends Error {
   constructor(

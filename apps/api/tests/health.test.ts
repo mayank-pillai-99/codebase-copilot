@@ -1,6 +1,7 @@
 import { healthResponseSchema } from '@codebase-copilot/shared';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AppError } from '../src/lib/errors';
 import { buildTestApp, healthyChecks } from './support/app';
 
 let app: FastifyInstance | undefined;
@@ -47,6 +48,17 @@ describe('error handling', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({ error: 'Not found' });
+  });
+
+  it('shows AppError messages even for 5xx, since they are written for users', async () => {
+    app = await buildTestApp();
+    app.get('/api/upstream', async () => {
+      throw new AppError(503, 'GitHub rate limit reached. Try again later.');
+    });
+    const res = await app.inject({ method: 'GET', url: '/api/upstream' });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ error: 'GitHub rate limit reached. Try again later.' });
   });
 
   it('hides internal error details from clients', async () => {

@@ -4,6 +4,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import type { Env } from './config/env';
+import { AppError } from './lib/errors';
 import { loggerOptions } from './lib/logger';
 import type { Redis } from './lib/redis';
 import { authPlugin } from './plugins/auth';
@@ -62,6 +63,11 @@ export async function buildApp({
       typeof error.statusCode === 'number'
         ? error.statusCode
         : 500;
+    if (error instanceof AppError) {
+      // Written for users, so safe at any status (e.g. 503 "GitHub rate limit reached").
+      if (statusCode >= 500) request.log.warn({ err: error }, 'upstream or dependency error');
+      return reply.code(statusCode).send({ error: error.message });
+    }
     if (statusCode >= 500) {
       request.log.error({ err: error }, 'unhandled error');
       return reply.code(500).send({ error: 'Something went wrong. Please try again.' });
