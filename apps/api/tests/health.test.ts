@@ -41,6 +41,22 @@ describe('GET /api/health', () => {
   });
 });
 
+describe('GET /api/health/live', () => {
+  it('answers 200 even when dependencies are down', async () => {
+    app = await buildTestApp({
+      healthChecks: {
+        ...healthyChecks,
+        database: async () => {
+          throw new Error('down');
+        },
+      },
+    });
+    const res = await app.inject({ method: 'GET', url: '/api/health/live' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ status: 'ok' });
+  });
+});
+
 describe('error handling', () => {
   it('returns JSON 404 for unknown routes', async () => {
     app = await buildTestApp();

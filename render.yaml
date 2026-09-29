@@ -1,0 +1,39 @@
+# Render Blueprint for the API (docs/deployment.md). The web app deploys to Vercel.
+services:
+  - type: web
+    name: codebase-copilot-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    # Liveness only; /api/health reports dependencies and would restart the service for
+    # outages that restarting can't fix.
+    healthCheckPath: /api/health/live
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Free instances have 512 MB; leave headroom for tree-sitter WASM and native memory.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=384
+      # Free hosting has no background worker service, so the API runs the indexing worker.
+      - key: RUN_WORKER_IN_PROCESS
+        value: 'true'
+      # Requests arrive through Render's proxy (and Vercel's rewrite before that).
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: JWT_SECRET
+        generateValue: true
+      # The rest are secrets or deployment-specific: Render asks for them on first deploy.
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: DEMO_REPOSITORIES
+        sync: false
