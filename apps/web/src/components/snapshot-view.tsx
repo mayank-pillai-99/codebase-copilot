@@ -9,9 +9,10 @@ import {
   type SnapshotDto,
   type SnapshotStats,
 } from '@codebase-copilot/shared';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { describeSkipped, githubBlobUrl, isSupportingPath, percent, shortSha } from '@/lib/format';
+import { codeHref, describeSkipped, isSupportingPath, percent } from '@/lib/format';
 import { StatusBadge } from './status-badge';
 
 const POLL_MS = 1_500;
@@ -25,8 +26,6 @@ export function SnapshotView({
   initialRoutes: RouteSummary[] | null;
 }) {
   const [snapshot, setSnapshot] = useState(initial);
-  const { owner, name } = snapshot.repository;
-  const repo = { owner, name };
 
   // Poll until the snapshot settles; indexing usually takes seconds.
   useEffect(() => {
@@ -50,30 +49,16 @@ export function SnapshotView({
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">
-            {owner}/{name}
-          </h1>
-          <p className="mt-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-            {snapshot.ref} @{' '}
-            <a
-              href={`https://github.com/${owner}/${name}/tree/${snapshot.commitSha}`}
-              className="underline-offset-4 hover:underline"
-            >
-              {shortSha(snapshot.commitSha)}
-            </a>
-          </p>
-        </div>
-        <StatusBadge status={snapshot.status} />
-      </header>
+      <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+        Status <StatusBadge status={snapshot.status} />
+      </div>
 
       {snapshot.status === 'FAILED' ? (
         <FailurePanel snapshot={snapshot} />
       ) : snapshot.status === 'READY' && snapshot.stats ? (
         <>
           <StatsGrid stats={snapshot.stats} />
-          <Routes snapshot={snapshot} repo={repo} initialRoutes={initialRoutes} />
+          <Routes snapshot={snapshot} initialRoutes={initialRoutes} />
         </>
       ) : (
         <ProgressPanel snapshot={snapshot} />
@@ -239,11 +224,9 @@ function StatsGrid({ stats }: { stats: SnapshotStats }) {
 
 function Routes({
   snapshot,
-  repo,
   initialRoutes,
 }: {
   snapshot: SnapshotDto;
-  repo: { owner: string; name: string };
   initialRoutes: RouteSummary[] | null;
 }) {
   const [routes, setRoutes] = useState<RouteSummary[] | null>(initialRoutes);
@@ -279,27 +262,19 @@ function Routes({
           No Express-style or Next.js routes were detected in this repository.
         </p>
       ) : (
-        <RouteGroups routes={routes} snapshot={snapshot} repo={repo} />
+        <RouteGroups routes={routes} snapshot={snapshot} />
       )}
     </section>
   );
 }
 
-function RouteGroups({
-  routes,
-  snapshot,
-  repo,
-}: {
-  routes: RouteSummary[];
-  snapshot: SnapshotDto;
-  repo: { owner: string; name: string };
-}) {
+function RouteGroups({ routes, snapshot }: { routes: RouteSummary[]; snapshot: SnapshotDto }) {
   const app = routes.filter((r) => !isSupportingPath(r.file.path));
   const supporting = routes.filter((r) => isSupportingPath(r.file.path));
   return (
     <div className="flex flex-col gap-3">
       {app.length > 0 ? (
-        <RouteTable routes={app} snapshot={snapshot} repo={repo} />
+        <RouteTable routes={app} snapshot={snapshot} />
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           All detected routes are in tests or examples.
@@ -312,7 +287,7 @@ function RouteGroups({
             {supporting.length === 1 ? 'route' : 'routes'} in tests and examples
           </summary>
           <div className="mt-3">
-            <RouteTable routes={supporting} snapshot={snapshot} repo={repo} />
+            <RouteTable routes={supporting} snapshot={snapshot} />
           </div>
         </details>
       )}
@@ -320,15 +295,7 @@ function RouteGroups({
   );
 }
 
-function RouteTable({
-  routes,
-  snapshot,
-  repo,
-}: {
-  routes: RouteSummary[];
-  snapshot: SnapshotDto;
-  repo: { owner: string; name: string };
-}) {
+function RouteTable({ routes, snapshot }: { routes: RouteSummary[]; snapshot: SnapshotDto }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
       <table className="w-full min-w-[40rem] text-left text-sm">
@@ -355,18 +322,17 @@ function RouteTable({
               <td className="px-3 py-2 font-mono text-xs">{route.path}</td>
               <td className="px-3 py-2 font-mono text-xs">
                 {route.handler ? (
-                  <a
+                  <Link
                     className="underline-offset-4 hover:underline"
-                    href={githubBlobUrl(
-                      repo,
-                      snapshot.commitSha,
+                    href={codeHref(
+                      snapshot.id,
                       route.handler.path,
                       route.handler.startLine,
                       route.handler.endLine,
                     )}
                   >
                     {route.handler.qualifiedName}
-                  </a>
+                  </Link>
                 ) : (
                   <span className="text-zinc-500 dark:text-zinc-400">
                     {route.handlerName ?? 'inline function'}
@@ -374,17 +340,17 @@ function RouteTable({
                 )}
               </td>
               <td className="px-3 py-2 font-mono text-xs">
-                <a
+                <Link
                   className="text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400"
-                  href={githubBlobUrl(
-                    repo,
-                    snapshot.commitSha,
+                  href={codeHref(
+                    snapshot.id,
                     route.file.path,
                     route.file.startLine,
+                    route.file.endLine,
                   )}
                 >
                   {route.file.path}:{route.file.startLine}
-                </a>
+                </Link>
               </td>
             </tr>
           ))}

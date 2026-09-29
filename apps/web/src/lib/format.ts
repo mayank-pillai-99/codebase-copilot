@@ -55,3 +55,30 @@ export function isSupportingPath(path: string): boolean {
     ) || /\.(test|spec)\.[cm]?[jt]sx?$/i.test(path)
   );
 }
+
+/** Link into the built-in code viewer, highlighting a line range. */
+export function codeHref(
+  snapshotId: string,
+  path: string,
+  startLine?: number,
+  endLine?: number,
+): string {
+  const params = new URLSearchParams({ path });
+  if (startLine !== undefined) {
+    params.set(
+      'lines',
+      endLine && endLine !== startLine ? `${startLine}-${endLine}` : `${startLine}`,
+    );
+  }
+  return `/repos/${snapshotId}/code?${params.toString()}${startLine !== undefined ? `#L${startLine}` : ''}`;
+}
+
+/** Parses "10" or "10-20" from the viewer URL; ignores anything else. */
+export function parseLineRange(value: unknown): { start: number; end: number } | null {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^(\d{1,6})(?:-(\d{1,6}))?$/);
+  if (!match) return null;
+  const start = Number(match[1]);
+  const end = match[2] ? Number(match[2]) : start;
+  return start >= 1 && end >= start ? { start, end } : null;
+}

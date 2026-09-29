@@ -7,3 +7,13 @@
 body {
   @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
 }
+
+/* Syntax colors from Shiki, which provides both themes as CSS variables. */
+.shiki-token {
+  color: var(--shiki-light);
+}
+@media (prefers-color-scheme: dark) {
+  .shiki-token {
+    color: var(--shiki-dark);
+  }
+}

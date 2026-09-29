@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { describeSkipped, githubBlobUrl, isSupportingPath, percent, shortSha } from './format';
+import {
+  codeHref,
+  describeSkipped,
+  githubBlobUrl,
+  isSupportingPath,
+  parseLineRange,
+  percent,
+  shortSha,
+} from './format';
 
 describe('format helpers', () => {
   it('builds GitHub links pinned to the commit, with line anchors', () => {
@@ -42,4 +50,22 @@ describe('isSupportingPath', () => {
     'src/contest/route.ts',
     'app/api/test/route.ts',
   ])('treats %s as application code', (path) => expect(isSupportingPath(path)).toBe(false));
+});
+
+describe('code viewer links', () => {
+  it('builds viewer URLs with a highlighted range and an anchor', () => {
+    expect(codeHref('abc', 'src/a b.ts', 10, 20)).toBe(
+      '/repos/abc/code?path=src%2Fa+b.ts&lines=10-20#L10',
+    );
+    expect(codeHref('abc', 'src/a.ts', 5, 5)).toBe('/repos/abc/code?path=src%2Fa.ts&lines=5#L5');
+    expect(codeHref('abc', 'README.md')).toBe('/repos/abc/code?path=README.md');
+  });
+
+  it('parses line ranges defensively', () => {
+    expect(parseLineRange('10-20')).toEqual({ start: 10, end: 20 });
+    expect(parseLineRange('7')).toEqual({ start: 7, end: 7 });
+    for (const bad of ['20-10', '0', 'x', '1-2-3', undefined, ['1']]) {
+      expect(parseLineRange(bad)).toBeNull();
+    }
+  });
 });
