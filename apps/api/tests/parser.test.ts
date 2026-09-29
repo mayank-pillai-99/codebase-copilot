@@ -250,3 +250,70 @@ makeHandler()();
     expect(file.calls.map((c) => c.calleeText)).toEqual(['makeHandler']);
   });
 });
+
+describe('CommonJS and prototype-style definitions', () => {
+  const js = (source: string) => parser.parse(source, 'javascript');
+
+  it('extracts the Express application pattern', () => {
+    const file = js(`
+exports = module.exports = createApplication;
+function createApplication() { return app.init(); }
+
+var app = exports = module.exports = {};
+app.init = function init() { this.defaultConfiguration(); };
+app.defaultConfiguration = function defaultConfiguration() {};
+`);
+    expect(symbolSummary(file)).toEqual([
+      'FUNCTION createApplication [exported] [default]',
+      'METHOD app.init [exported]',
+      'METHOD app.defaultConfiguration [exported]',
+    ]);
+    expect(file.symbols[1]).toMatchObject({
+      container: 'app',
+      signature: 'app.init = function init()',
+    });
+  });
+
+  it('extracts exports.x, module.exports objects and prototype methods', () => {
+    const file = js(`
+exports.json = function json(obj) {};
+exports.helper = helper;
+function helper() {}
+module.exports.version = '1.0';
+function Router() {}
+Router.prototype.handle = function (req, res) { this.next(); };
+Router.prototype.next = function next() {};
+module.exports = { Router, create: makeRouter, ping() {} };
+function makeRouter() {}
+`);
+    expect(symbolSummary(file)).toEqual([
+      'FUNCTION json [exported]',
+      'FUNCTION helper [exported]',
+      'VARIABLE version [exported]',
+      'FUNCTION Router [exported]',
+      'METHOD Router.handle',
+      'METHOD Router.next',
+      'FUNCTION ping [exported]',
+      'FUNCTION makeRouter [exported]',
+    ]);
+    expect(file.symbols.find((s) => s.name === 'handle')?.container).toBe('Router');
+  });
+
+  it('exports members of an object assigned to module.exports later', () => {
+    const file = js(`
+var res = Object.create(http.ServerResponse.prototype);
+module.exports = res;
+res.send = function send(body) { this.end(body); };
+`);
+    expect(symbolSummary(file)).toEqual(['METHOD res.send [exported]']);
+  });
+
+  it('ignores assignments that define nothing', () => {
+    const file = js(`
+this.handler = function () {};
+module.exports.count = 1 + 1;
+obj.value = 42;
+`);
+    expect(symbolSummary(file)).toEqual(['VARIABLE count [exported]']);
+  });
+});

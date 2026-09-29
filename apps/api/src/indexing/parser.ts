@@ -19,6 +19,11 @@ export interface ParsedSymbol {
   docComment: string | null;
   /** Class that owns a method. */
   parentIndex: number | null;
+  /**
+   * CommonJS-style owner for members assigned onto an object or prototype, e.g. "res"
+   * for `res.send = function () {}` or "Foo" for `Foo.prototype.bar = …`.
+   */
+  container: string | null;
   /** Byte range, for finding the symbol that encloses a call. */
   startIndex: number;
   endIndex: number;
@@ -128,16 +133,29 @@ export function extractFile(root: Node): ParsedFile {
   const imports: ParsedImport[] = [];
   const localExports = new Map<string, string>(); // local name → exported name
   let defaultExportName: string | null = null;
+  // Objects that are module.exports (`var app = module.exports = {}`); their members are exported.
+  const moduleObjects = new Set<string>();
+  const commonJs = {
+    add: (...args: Parameters<AddSymbol>) => add(...args),
+    exportLocal: (local: string, exported: string) => localExports.set(local, exported),
+    setDefault: (name: string) => {
+      defaultExportName = name;
+      moduleObjects.add(name);
+    },
+    markModuleObject: (name: string) => moduleObjects.add(name),
+  };
 
   const add = (
-    symbol: Omit<ParsedSymbol, 'index' | 'isDefault' | 'parentIndex'> & {
+    symbol: Omit<ParsedSymbol, 'index' | 'isDefault' | 'parentIndex' | 'container'> & {
       isDefault?: boolean;
       parentIndex?: number | null;
+      container?: string | null;
     },
   ) => {
     const full: ParsedSymbol = {
       isDefault: false,
       parentIndex: null,
+      container: null,
       ...symbol,
       index: symbols.length,
     };
@@ -182,10 +200,15 @@ export function extractFile(root: Node): ParsedFile {
       continue;
     }
 
+    if (collectCommonJs(statement, commonJs)) continue;
     collectDeclaration(statement, statement, { exported: false, isDefault: false }, add);
   }
 
   for (const symbol of symbols) {
+    if (symbol.container !== null) {
+      if (moduleObjects.has(symbol.container)) symbol.exported = true;
+      continue;
+    }
     if (symbol.parentIndex !== null) continue;
     const exportedAs = localExports.get(symbol.name);
     if (exportedAs) {
@@ -209,11 +232,163 @@ export function extractFile(root: Node): ParsedFile {
 }
 
 type AddSymbol = (
-  symbol: Omit<ParsedSymbol, 'index' | 'isDefault' | 'parentIndex'> & {
+  symbol: Omit<ParsedSymbol, 'index' | 'isDefault' | 'parentIndex' | 'container'> & {
     isDefault?: boolean;
     parentIndex?: number | null;
+    container?: string | null;
   },
 ) => ParsedSymbol;
+
+interface CommonJsSink {
+  add: AddSymbol;
+  exportLocal(local: string, exported: string): void;
+  setDefault(name: string): void;
+  markModuleObject(name: string): void;
+}
+
+/**
+ * CommonJS and prototype-style definitions, which are plain assignments:
+ *   module.exports = fn | { a, b: c, d() {} }   exports.x = fn   exports = module.exports = fn
+ *   var app = exports = module.exports = {}     app.init = function () {}
+ *   Foo.prototype.bar = function () {}
+ * Returns true when the statement was handled.
+ */
+function collectCommonJs(statement: Node, sink: CommonJsSink): boolean {
+  // var app = exports = module.exports = {};
+  if (statement.type === 'variable_declaration' || statement.type === 'lexical_declaration') {
+    const declarators = statement.namedChildren.filter((c) => c.type === 'variable_declarator');
+    const declarator = declarators.length === 1 ? declarators[0] : undefined;
+    const name = declarator?.childForFieldName('name');
+    const value = declarator?.childForFieldName('value');
+    if (name?.type !== 'identifier' || value?.type !== 'assignment_expression') return false;
+    const { targets, value: assigned } = unwrapAssignments(value);
+    if (!targets.some(isModuleExports)) return false;
+    sink.markModuleObject(name.text);
+    exportModuleValue(assigned, statement, sink);
+    return true;
+  }
+
+  if (statement.type !== 'expression_statement') return false;
+  const assignment = statement.namedChildren[0];
+  if (assignment?.type !== 'assignment_expression') return false;
+  const { targets, value } = unwrapAssignments(assignment);
+
+  if (targets.some(isModuleExports)) {
+    exportModuleValue(value, statement, sink);
+    return true;
+  }
+
+  const target = targets[0];
+  if (targets.length !== 1 || target?.type !== 'member_expression') return false;
+  const object = target.childForFieldName('object');
+  const property = target.childForFieldName('property')?.text;
+  if (!object || !property) return false;
+
+  const flags = { exported: true, isDefault: false };
+  // exports.x = … / module.exports.x = …
+  if (isModuleExports(object)) {
+    if (value.type === 'identifier') sink.exportLocal(value.text, property);
+    else collectValue(property, value, statement, statement, flags, sink.add);
+    return true;
+  }
+
+  if (!isFunctionLike(value)) return false;
+  // Foo.prototype.bar = function () {} → Foo.bar; res.send = function () {} → res.send
+  const prototypeOwner =
+    object.type === 'member_expression' &&
+    object.childForFieldName('property')?.text === 'prototype'
+      ? object.childForFieldName('object')
+      : null;
+  const container =
+    prototypeOwner?.type === 'identifier'
+      ? prototypeOwner.text
+      : object.type === 'identifier'
+        ? object.text
+        : null;
+  if (!container || container === 'this' || container === 'module') return false;
+
+  sink.add({
+    kind: 'METHOD',
+    name: property,
+    qualifiedName: `${container}.${property}`,
+    signature: clean(
+      `${sourceBetween(statement, statement.startIndex, value.startIndex)}${headerOf(value)}`,
+    ),
+    ...lines(statement),
+    startIndex: statement.startIndex,
+    endIndex: statement.endIndex,
+    exported: false,
+    docComment: docCommentFor(statement),
+    container,
+  });
+  return true;
+}
+
+function exportModuleValue(value: Node, statement: Node, sink: CommonJsSink): void {
+  if (value.type === 'identifier') {
+    sink.setDefault(value.text);
+  } else if (isFunctionLike(value) || value.type === 'class') {
+    const name = value.childForFieldName('name')?.text ?? 'default';
+    collectValue(name, value, statement, statement, { exported: true, isDefault: true }, sink.add);
+  } else if (value.type === 'object') {
+    for (const entry of value.namedChildren) {
+      if (entry.type === 'shorthand_property_identifier') sink.exportLocal(entry.text, entry.text);
+      if (entry.type === 'pair') {
+        const key = entry.childForFieldName('key')?.text;
+        const pairValue = entry.childForFieldName('value');
+        if (!key || !pairValue) continue;
+        if (pairValue.type === 'identifier') sink.exportLocal(pairValue.text, key);
+        else
+          collectValue(
+            key,
+            pairValue,
+            entry,
+            entry,
+            { exported: true, isDefault: false },
+            sink.add,
+          );
+      }
+      if (entry.type === 'method_definition') {
+        const key = entry.childForFieldName('name')?.text;
+        if (!key) continue;
+        sink.add({
+          kind: 'FUNCTION',
+          name: key,
+          qualifiedName: key,
+          signature: headerOf(entry),
+          ...lines(entry),
+          startIndex: entry.startIndex,
+          endIndex: entry.endIndex,
+          exported: true,
+          docComment: docCommentFor(entry),
+        });
+      }
+    }
+  }
+}
+
+/** a = b = c → targets [a, b], value c */
+function unwrapAssignments(node: Node): { targets: Node[]; value: Node } {
+  const targets: Node[] = [];
+  let current = node;
+  while (current.type === 'assignment_expression') {
+    const left = current.childForFieldName('left');
+    const right = current.childForFieldName('right');
+    if (!left || !right) break;
+    targets.push(left);
+    current = right;
+  }
+  return { targets, value: current };
+}
+
+function isModuleExports(node: Node): boolean {
+  if (node.type === 'identifier') return node.text === 'exports';
+  return (
+    node.type === 'member_expression' &&
+    node.childForFieldName('object')?.text === 'module' &&
+    node.childForFieldName('property')?.text === 'exports'
+  );
+}
 
 function collectDeclaration(
   node: Node,
@@ -312,7 +487,14 @@ function collectClass(
   name: string,
   base: Omit<
     ParsedSymbol,
-    'index' | 'kind' | 'name' | 'qualifiedName' | 'signature' | 'isDefault' | 'parentIndex'
+    | 'index'
+    | 'kind'
+    | 'name'
+    | 'qualifiedName'
+    | 'signature'
+    | 'isDefault'
+    | 'parentIndex'
+    | 'container'
   > & {
     isDefault: boolean;
   },

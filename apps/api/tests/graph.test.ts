@@ -126,6 +126,35 @@ router.get('/payments/format', utils.log);
     ]);
   });
 
+  it('resolves CommonJS requires, module.exports and this-calls within an object', () => {
+    const cjs = buildCodeGraph(
+      repo({
+        'lib/express.js': `
+var application = require('./application');
+var { json } = require('./utils');
+exports = module.exports = createApplication;
+function createApplication() { json(); return application.init(); }
+`,
+        'lib/application.js': `
+var app = exports = module.exports = {};
+app.init = function init() { this.defaultConfiguration(); };
+app.defaultConfiguration = function defaultConfiguration() {};
+`,
+        'lib/utils.js': `exports.json = function json() {};`,
+        'index.js': `const express = require('./lib/express'); express();`,
+      }),
+      parser,
+    );
+    expect(callsFrom(cjs, 'lib/express.js')).toEqual([
+      'json → lib/utils.js:json',
+      'application.init → lib/application.js:app.init',
+    ]);
+    expect(callsFrom(cjs, 'lib/application.js')).toEqual([
+      'this.defaultConfiguration → lib/application.js:app.defaultConfiguration',
+    ]);
+    expect(callsFrom(cjs, 'index.js')).toEqual(['express → lib/express.js:createApplication']);
+  });
+
   it('survives re-export cycles', () => {
     const cyclic = buildCodeGraph(
       repo({

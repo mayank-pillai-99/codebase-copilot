@@ -170,13 +170,22 @@ export function buildCodeGraph(
   ): SymbolRef | null {
     const file = analyzed.get(path)!;
     const topLevel = (n: string) => {
-      const s = file.symbols.find((sym) => sym.parentIndex === null && sym.name === n);
+      // Members assigned onto objects (res.send = …) aren't bare names in scope.
+      const s = file.symbols.find(
+        (sym) => sym.parentIndex === null && sym.container === null && sym.name === n,
+      );
+      return s ? { path, index: s.index } : null;
+    };
+    const member = (container: string, n: string) => {
+      const s = file.symbols.find((sym) => sym.container === container && sym.name === n);
       return s ? { path, index: s.index } : null;
     };
     const identifier = (n: string): SymbolRef | null => {
       const binding = bindings.get(n);
-      if (binding)
-        return binding.imported === '*' ? null : findExport(binding.target, binding.imported);
+      if (binding) {
+        // Calling a require()'d module directly calls what it assigned to module.exports.
+        return findExport(binding.target, binding.imported === '*' ? 'default' : binding.imported);
+      }
       return topLevel(n);
     };
 
@@ -184,6 +193,7 @@ export function buildCodeGraph(
 
     if (receiver === 'this' && fromSymbolIndex !== null) {
       const from = file.symbols[fromSymbolIndex];
+      if (from?.container) return member(from.container, name);
       const classIndex = from?.kind === 'CLASS' ? from.index : from?.parentIndex;
       return classIndex === null || classIndex === undefined
         ? null
@@ -193,6 +203,8 @@ export function buildCodeGraph(
     if (/^[A-Za-z_$][\w$]*$/.test(receiver)) {
       const binding = bindings.get(receiver);
       if (binding?.imported === '*') return findExport(binding.target, name); // namespace / module object
+      const sameFileMember = binding ? null : member(receiver, name); // app.init() next to app.init = …
+      if (sameFileMember) return sameFileMember;
       const owner = identifier(receiver);
       if (owner) return methodOf(owner, name); // static method on a class
     }
