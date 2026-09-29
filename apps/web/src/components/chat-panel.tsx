@@ -8,7 +8,6 @@ import {
   type ChatSource,
 } from '@codebase-copilot/shared';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { codeHref } from '@/lib/format';
 import { parseSseBlock } from '@/lib/markdown';
@@ -35,7 +34,7 @@ const STARTERS = [
 
 export function ChatPanel({
   snapshotId,
-  sessions,
+  sessions: initialSessions,
   initialSessionId,
   initialMessages,
 }: {
@@ -44,8 +43,8 @@ export function ChatPanel({
   initialSessionId: string | null;
   initialMessages: ChatMessageDto[];
 }) {
-  const router = useRouter();
   const [sessionId, setSessionId] = useState(initialSessionId);
+  const [sessions, setSessions] = useState(initialSessions);
   const [messages, setMessages] = useState<UiMessage[]>(() =>
     initialMessages.map((m) => ({ ...m, sources: [], streaming: false, error: null })),
   );
@@ -129,9 +128,21 @@ export function ChatPanel({
           const event = parsed.data;
           if (event.type === 'session' && event.sessionId !== sessionId) {
             setSessionId(event.sessionId);
-            router.replace(`/repos/${snapshotId}/chat?session=${event.sessionId}`, {
-              scroll: false,
-            });
+            setSessions((all) => [
+              {
+                id: event.sessionId,
+                title: text.slice(0, 80),
+                updatedAt: new Date().toISOString(),
+              },
+              ...all,
+            ]);
+            // Only the URL changes. router.replace() would re-render the server page, remount
+            // this component and abort the answer that is still streaming.
+            window.history.replaceState(
+              null,
+              '',
+              `/repos/${snapshotId}/chat?session=${event.sessionId}`,
+            );
           } else if (event.type === 'sources') {
             updateLast((m) => ({ ...m, sources: event.sources }));
           } else if (event.type === 'token') {
