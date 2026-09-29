@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp.*
+
+# Builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tests / coverage
+coverage/
+playwright-report/
+test-results/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# ML / eval data (raw data stays out of git)
+ml/data/raw/
+ml/data/interim/
+eval/results/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local temp
+tmp/
