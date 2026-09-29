@@ -38,3 +38,23 @@ Milestone 4 adds semantic search and grounded chat. The vector dimension is fixe
 - Free-tier rate limits bound indexing speed and chat volume. The embedding step batches requests and backs off on 429 responses, and chat is rate-limited per user and per IP.
 - Without `GEMINI_API_KEY`, indexing still finishes: chunks are stored without embeddings, search uses full-text search only, and chat reports that it isn't configured.
 - Switching embedding models means re-indexing. Mixing models inside a snapshot is prevented by the recorded `embedding_model`.
+
+## Live measurements (2026-09-29, free tier)
+
+Measured with a real AI Studio key against the `gothinkster/node-express-realworld-example-app` demo (39 source files, 75 chunks):
+
+| Step                                                     | Result                                                                                                            |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Index + embed (75 chunks)                                | 4.7 s                                                                                                             |
+| Index + embed `honojs/examples` (114 chunks) right after | 151 s: the embedding client backed off on per-minute limits and finished without intervention                     |
+| Embedding sanity check                                   | "how do users sign in?" scored 0.731 against `login` vs 0.634 against `charge`                                    |
+| Chat, first token / full answer                          | 3.4 s / 4.5 s typical; the main model sometimes stalled for 10–25 s                                               |
+| Grounding                                                | Cited lines matched the code; asked about Stripe, the model said the code doesn't mention it rather than guessing |
+
+**What changed because of it:** free-tier chat models are often overloaded, and not always with a fast 503. Sometimes they stall long enough (over 30 s) for proxy idle timeouts to close the stream. Chat now:
+
+- tries `LLM_FALLBACK_MODELS` when the main model is overloaded, rate-limited, or gives no first token within 15 s
+- turns off LangChain's own retries, so a hand-over takes seconds, not a minute
+- sends SSE heartbeat comments every 10 s so no proxy closes a slow stream
+
+**Account issue seen during setup:** a key from one AI Studio project returned `403 PERMISSION_DENIED: "Your project has been denied access"` for every model call, although listing models worked. A key created in a _new project_ worked immediately. The app handles this state without crashing: indexing completes with full-text search only, and chat reports that the provider rejected the request.

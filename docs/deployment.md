@@ -36,7 +36,9 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
 1. At https://aistudio.google.com, choose **Get API key → Create API key**. No billing setup is needed for the free tier.
 2. Optional: to check which chat models your key can use:
    `curl -s -H "x-goog-api-key: $KEY" "https://generativelanguage.googleapis.com/v1beta/models" | grep '"name"'`.
-   The default `LLM_MODEL=gemini-flash-latest` follows Google's current Flash model.
+   The default `LLM_MODEL=gemini-flash-latest` follows Google's current Flash model, and `LLM_FALLBACK_MODELS=gemini-flash-lite-latest` answers when it's overloaded.
+3. Check that the key can actually call models (listing models isn't enough, see Troubleshooting):
+   `curl -s -X POST -H "x-goog-api-key: $KEY" -H 'content-type: application/json' "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:batchEmbedContents" -d '{"requests":[{"model":"models/gemini-embedding-2","content":{"parts":[{"text":"hi"}]},"output_dimensionality":768}]}' | head -c 200`
 
 ## 4. API: Render
 
@@ -63,6 +65,13 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
 1. Open the Vercel URL. The first request may show "Waking up the server…" while Render starts.
 2. The demo repositories appear on the landing page once indexed. Open one, check the **Code** tab, and ask a question in **Chat**. Answers should stream and their `[n]` citations should open the right lines.
 3. Sign up, add a small public repository, and watch it index.
+
+## Troubleshooting
+
+- **`403 PERMISSION_DENIED: "Your project has been denied access"`** on every model call: the AI Studio _project_ is blocked. Create a key in a **new project** (Get API key → Create API key in new project). If that fails too, try a different personal Google account.
+- **Chat says the models are overloaded:** free-tier Gemini models are busy at times. The API already falls back to `LLM_FALLBACK_MODELS`; add more comma-separated models from the list your key can see, or wait a minute.
+- **Embedding takes minutes for a repository:** per-minute free-tier limits. The indexer backs off and continues on its own; the progress bar keeps moving.
+- **The site shows "Waking up the server…" for more than two minutes:** check Render's logs. The API applies migrations on boot and fails fast on invalid configuration, listing which variables are wrong.
 
 ## Operating notes
 
