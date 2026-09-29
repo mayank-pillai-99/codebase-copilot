@@ -19,6 +19,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   trackedRepositories TrackedRepository[]
+  chatSessions        ChatSession[]
 
   @@map("users")
 }
@@ -79,13 +80,14 @@ model Snapshot {
   startedAt     DateTime?      @map("started_at")
   readyAt       DateTime?      @map("ready_at")
 
-  repository Repository   @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  files      File[]
-  symbols    Symbol[]
-  imports    ImportEdge[]
-  calls      CallEdge[]
-  routes     Route[]
-  chunks     Chunk[]
+  repository   Repository    @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  files        File[]
+  symbols      Symbol[]
+  imports      ImportEdge[]
+  calls        CallEdge[]
+  routes       Route[]
+  chunks       Chunk[]
+  chatSessions ChatSession[]
 
   @@unique([repositoryId, commitSha])
   @@map("snapshots")
@@ -112,13 +114,14 @@ model File {
   /// Parse errors were found; extraction for this file may be partial.
   hasErrors   Boolean  @default(false) @map("has_errors")
 
-  snapshot    Snapshot     @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  snapshot    Snapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
   symbols     Symbol[]
-  importsFrom ImportEdge[] @relation("ImportFrom")
-  importedBy  ImportEdge[] @relation("ImportTo")
+  importsFrom ImportEdge[]      @relation("ImportFrom")
+  importedBy  ImportEdge[]      @relation("ImportTo")
   calls       CallEdge[]
   routes      Route[]
   chunks      Chunk[]
+  citations   MessageCitation[]
 
   @@unique([snapshotId, path])
   @@map("files")
@@ -260,8 +263,66 @@ model Chunk {
   file     File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
   symbol   Symbol?  @relation(fields: [symbolId], references: [id], onDelete: SetNull)
 
+  citations MessageCitation[]
+
   @@index([snapshotId])
   @@index([fileId])
   @@index([tsv], map: "chunks_tsv_idx", type: Gin)
   @@map("chunks")
+}
+
+/// A conversation about one snapshot. userId is null for anonymous demo chats.
+model ChatSession {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  snapshotId String   @map("snapshot_id") @db.Uuid
+  title      String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user     User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshot Snapshot      @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId, snapshotId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  /// user | assistant
+  role      String
+  content   String
+  /// Retrieval strategy used for an assistant answer (hybrid, vector, …).
+  retriever String?
+  latencyMs Int?     @map("latency_ms")
+  /// The model cited sources it wasn't given; those markers were removed.
+  flagged   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session   ChatSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  citations MessageCitation[]
+
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+/// A validated [n] marker in an answer. Location comes from the chunk, never from model output.
+model MessageCitation {
+  id        String  @id @default(uuid()) @db.Uuid
+  messageId String  @map("message_id") @db.Uuid
+  marker    Int
+  chunkId   String? @map("chunk_id") @db.Uuid
+  fileId    String  @map("file_id") @db.Uuid
+  startLine Int     @map("start_line")
+  endLine   Int     @map("end_line")
+  label     String?
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chunk   Chunk?      @relation(fields: [chunkId], references: [id], onDelete: SetNull)
+  file    File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_citations")
 }

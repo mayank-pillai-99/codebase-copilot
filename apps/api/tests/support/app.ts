@@ -5,6 +5,7 @@ import { AppError } from '../../src/lib/errors';
 import { createAuthService } from '../../src/services/auth.service';
 import type { HealthChecks } from '../../src/services/health.service';
 import type { RepositoryService } from '../../src/services/repository.service';
+import type { ChatService } from '../../src/chat/chat.service';
 import { createInMemoryUsers, fakeHasher } from './fakes';
 
 export const testEnv: AppDeps['env'] = {
@@ -34,6 +35,18 @@ export const unusedRepositories: RepositoryService = {
   listRoutes: async () => [],
 };
 
+/** Chat service for tests that don't exercise it. */
+export const unusedChat: ChatService = {
+  prepare: async () => {
+    throw new AppError(501, 'not used in this test');
+  },
+  answer: async () => undefined,
+  listSessions: async () => [],
+  getSession: async () => {
+    throw new AppError(404, 'Conversation not found');
+  },
+};
+
 /** App wired with in-memory fakes; override any dependency per test. */
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
   return buildApp({
@@ -41,6 +54,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     healthChecks: healthyChecks,
     auth: createAuthService({ users: createInMemoryUsers(), hasher: fakeHasher }),
     repositories: unusedRepositories,
+    chat: unusedChat,
     ...overrides,
   });
 }

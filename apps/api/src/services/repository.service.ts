@@ -10,6 +10,7 @@ import type { GitHubClient } from '../github/client';
 import { AppError } from '../lib/errors';
 import type { PrismaClient } from '../lib/prisma';
 import type { IndexingQueue } from '../queue/indexing-queue';
+import { findVisibleSnapshot, snapshotInclude } from './snapshot-access';
 
 export interface RepositoryService {
   /** Resolves the URL to a commit and queues indexing unless that commit is already indexed. */
@@ -18,8 +19,6 @@ export interface RepositoryService {
   getSnapshot(userId: string, snapshotId: string): Promise<SnapshotDto>;
   listRoutes(userId: string, snapshotId: string): Promise<RouteSummary[]>;
 }
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type SnapshotRow = {
   id: string;
@@ -42,20 +41,8 @@ export function createRepositoryService(deps: {
   enqueueTimeoutMs?: number;
 }): RepositoryService {
   const { prisma, github, queue, enqueueTimeoutMs = 5_000 } = deps;
-  const snapshotInclude = {
-    repository: { select: { id: true, owner: true, name: true } },
-  } as const;
-
-  /** Snapshots are visible to users who track their repository; everyone else gets 404. */
-  async function findVisibleSnapshot(userId: string, snapshotId: string) {
-    if (!UUID.test(snapshotId)) throw new AppError(404, 'Not found');
-    const snapshot = await prisma.snapshot.findFirst({
-      where: { id: snapshotId, repository: { trackedBy: { some: { userId } } } },
-      include: snapshotInclude,
-    });
-    if (!snapshot) throw new AppError(404, 'Not found');
-    return snapshot;
-  }
+  const findVisible = (userId: string, snapshotId: string) =>
+    findVisibleSnapshot(prisma, userId, snapshotId);
 
   async function enqueue(snapshotId: string) {
     let timer: NodeJS.Timeout | undefined;
@@ -141,11 +128,11 @@ export function createRepositoryService(deps: {
     },
 
     async getSnapshot(userId, snapshotId) {
-      return toSnapshotDto(await findVisibleSnapshot(userId, snapshotId));
+      return toSnapshotDto(await findVisible(userId, snapshotId));
     },
 
     async listRoutes(userId, snapshotId) {
-      await findVisibleSnapshot(userId, snapshotId);
+      await findVisible(userId, snapshotId);
       const routes = await prisma.route.findMany({
         where: { snapshotId },
         orderBy: [{ path: 'asc' }, { method: 'asc' }],

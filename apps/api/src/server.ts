@@ -2,11 +2,18 @@ import type { Worker } from 'bullmq';
 import { buildApp } from './app';
 import { EnvError, parseEnv } from './config/env';
 import { createGitHubClient } from './github/client';
+import { createChatService } from './chat/chat.service';
 import { createIndexerFromEnv } from './indexing/setup';
 import { argon2Hasher } from './lib/password';
 import { createPrisma } from './lib/prisma';
+import { createDailyQuota } from './lib/quota';
 import { createQueueRedis, createRedis, type Redis } from './lib/redis';
 import { createIndexingQueue, startIndexingWorker } from './queue/indexing-queue';
+import { createFullTextRetriever } from './retrieval/fulltext';
+import { createHybridRetriever } from './retrieval/hybrid';
+import { createVectorRetriever } from './retrieval/vector';
+import { createGeminiChatModel } from './llm/chat-model';
+import { GeminiEmbeddings } from './llm/embeddings';
 import { createUserRepository } from './repositories/user.repository';
 import { createAuthService } from './services/auth.service';
 import { createDependencyChecks } from './services/dependency-checks';
@@ -24,6 +31,24 @@ async function main(): Promise<void> {
   queueConnection.on('error', () => undefined);
   const queue = createIndexingQueue(queueConnection);
 
+  const embeddings = env.GEMINI_API_KEY
+    ? new GeminiEmbeddings({ apiKey: env.GEMINI_API_KEY, model: env.EMBEDDING_MODEL })
+    : null;
+  const retriever = createHybridRetriever(
+    prisma,
+    createVectorRetriever(prisma, embeddings),
+    createFullTextRetriever(prisma),
+  );
+  const chatModel = env.GEMINI_API_KEY
+    ? createGeminiChatModel({ apiKey: env.GEMINI_API_KEY, model: env.LLM_MODEL })
+    : null;
+
+  // The chat service logs through the app's pino logger, which exists once the app is built.
+  const appLogger = {
+    info: (obj: object, msg?: string) => app.log.info(obj, msg),
+    warn: (obj: object, msg?: string) => app.log.warn(obj, msg),
+    error: (obj: object, msg?: string) => app.log.error(obj, msg),
+  };
   const app = await buildApp({
     env,
     healthChecks: createDependencyChecks(prisma, redis),
@@ -33,6 +58,8 @@ async function main(): Promise<void> {
       github: createGitHubClient({ token: env.GITHUB_TOKEN }),
       queue,
     }),
+    chat: createChatService({ prisma, retriever, model: chatModel, logger: appLogger }),
+    chatQuota: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
     redis,
   });
 

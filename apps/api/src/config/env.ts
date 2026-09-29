@@ -37,6 +37,10 @@ const envSchema = z.object({
     .transform((value) => value || undefined),
   // Changing the embedding model requires re-indexing (the vector column is 768-dimension).
   EMBEDDING_MODEL: z.string().default('gemini-embedding-2'),
+  // Chat model; the -latest alias follows Google's current Flash model.
+  LLM_MODEL: z.string().default('gemini-flash-latest'),
+  // Answers per user per day, protecting the free LLM quota.
+  CHAT_DAILY_LIMIT: z.coerce.number().int().positive().default(100),
 });
 
 export type Env = z.infer<typeof envSchema>;

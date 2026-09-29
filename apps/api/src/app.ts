@@ -3,12 +3,15 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
+import type { ChatService } from './chat/chat.service';
 import type { Env } from './config/env';
 import { AppError } from './lib/errors';
 import { loggerOptions } from './lib/logger';
+import type { DailyQuota } from './lib/quota';
 import type { Redis } from './lib/redis';
 import { authPlugin } from './plugins/auth';
 import { authRoutes } from './routes/auth';
+import { chatRoutes } from './routes/chat';
 import { healthRoutes } from './routes/health';
 import { repositoryRoutes } from './routes/repositories';
 import type { AuthService } from './services/auth.service';
@@ -23,6 +26,9 @@ export interface AppDeps {
   healthChecks: HealthChecks;
   auth: AuthService;
   repositories: RepositoryService;
+  chat: ChatService;
+  /** Daily cap on chat answers per user; omitted in tests. */
+  chatQuota?: DailyQuota;
   /** Shared rate-limit counters across instances; in-memory when omitted (tests). */
   redis?: Redis;
 }
@@ -32,6 +38,8 @@ export async function buildApp({
   healthChecks,
   auth,
   repositories,
+  chat,
+  chatQuota,
   redis,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env), trustProxy: env.TRUST_PROXY });
@@ -90,6 +98,7 @@ export async function buildApp({
   });
   await app.register(authRoutes, { auth });
   await app.register(repositoryRoutes, { repositories });
+  await app.register(chatRoutes, { chat, quota: chatQuota });
 
   return app;
 }
