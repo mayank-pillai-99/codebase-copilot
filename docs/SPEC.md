@@ -604,6 +604,8 @@ Each milestone ends with working, tested, committed code. Tests are written alon
 | 10  | **Polish**                                    | README with architecture diagram, demo GIF/video, eval results, `docs/deployment.md`, security pass                                                                                                         |
 | —   | _Stretch_                                     | Python support; Semgrep-based security findings explained with repo context; incremental re-indexing between commits; GitHub OAuth                                                                          |
 
+**Milestone 5 status (2026-09-30):** the harness (dataset format, metrics, runner, `/eval` page, search endpoint) is built and tested, but no run was published: the v1 questions were LLM-drafted and the owner chose not to publish results from them (ADR 0005). Milestone 6's comparison against hybrid search would need a dataset the owner is happy to publish.
+
 ---
 
 ## 22. Resume statement (only after it's true)

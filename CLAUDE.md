@@ -6,7 +6,7 @@ Codebase Copilot: paste a GitHub URL, get an onboarding guide to that codebase, 
 
 ## Current status
 
-Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Milestone 5 (retrieval evaluation, ADR 0005) is built; its first published run is pending the free embedding quota. Milestone 7 is done (ADR 0006): architecture map and request tracing, deterministic only. Next: Milestone 6 (agentic retriever) once evaluation results exist. See `docs/SPEC.md` §21.
+Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Milestone 7 is done (ADR 0006): architecture map and request tracing, deterministic only. Milestone 5's evaluation harness (ADR 0005) is built but was not run or published, by decision (2026-09-30): the questions were LLM-drafted. The code stays; nothing in the UI or README links to `/eval`. Remaining: Milestones 6, 8, 9 and 10. See `docs/SPEC.md` §21.
 
 ## Stack
 

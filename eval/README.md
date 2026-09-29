@@ -1,5 +1,7 @@
 # Retrieval evaluation
 
+> **Status:** the harness is built and tested, but no run has been published. The v1 questions are LLM-drafted, and the project owner chose not to publish results from them. The `/eval` page is not linked from the site.
+
 This directory holds the benchmark behind the public `/eval` page (SPEC §8). It measures how often each retrieval strategy finds the files that answer a question about a codebase.
 
 ```text

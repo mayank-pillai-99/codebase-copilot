@@ -1,6 +1,6 @@
 # 0005: Retrieval evaluation design
 
-- **Status:** Accepted
+- **Status:** Accepted; the harness is built, but no results were published (2026-09-30, see SPEC §21)
 - **Date:** 2026-09-29
 
 ## Context
