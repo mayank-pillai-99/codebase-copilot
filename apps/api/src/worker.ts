@@ -10,7 +10,12 @@ async function main(): Promise<void> {
   const env = parseEnv();
   const logger = pino({
     level: env.LOG_LEVEL,
-    ...(env.NODE_ENV === 'development' && { transport: { target: 'pino-pretty' } }),
+    ...(env.NODE_ENV === 'development' && {
+      transport: {
+        target: 'pino-pretty',
+        options: { translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
+      },
+    }),
   });
   const prisma = createPrisma(env.DATABASE_URL);
   const connection = createQueueRedis(env.REDIS_URL);

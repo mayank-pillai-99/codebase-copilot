@@ -14,7 +14,7 @@ export function loggerOptions(
     ...(env.NODE_ENV === 'development' && {
       transport: {
         target: 'pino-pretty',
-        options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
+        options: { translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
       },
     }),
   };
