@@ -1,14 +1,16 @@
 import type { Worker } from 'bullmq';
 import { buildApp } from './app';
 import { EnvError, parseEnv } from './config/env';
+import { createGitHubClient } from './github/client';
 import { createIndexerFromEnv } from './indexing/setup';
 import { argon2Hasher } from './lib/password';
 import { createPrisma } from './lib/prisma';
 import { createQueueRedis, createRedis, type Redis } from './lib/redis';
-import { startIndexingWorker } from './queue/indexing-queue';
+import { createIndexingQueue, startIndexingWorker } from './queue/indexing-queue';
 import { createUserRepository } from './repositories/user.repository';
 import { createAuthService } from './services/auth.service';
 import { createDependencyChecks } from './services/dependency-checks';
+import { createRepositoryService } from './services/repository.service';
 
 async function main(): Promise<void> {
   const env = parseEnv();
@@ -18,10 +20,19 @@ async function main(): Promise<void> {
   redis.on('error', () => undefined);
   redis.connect().catch(() => undefined);
 
+  const queueConnection = createQueueRedis(env.REDIS_URL);
+  queueConnection.on('error', () => undefined);
+  const queue = createIndexingQueue(queueConnection);
+
   const app = await buildApp({
     env,
     healthChecks: createDependencyChecks(prisma, redis),
     auth: createAuthService({ users: createUserRepository(prisma), hasher: argon2Hasher }),
+    repositories: createRepositoryService({
+      prisma,
+      github: createGitHubClient({ token: env.GITHUB_TOKEN }),
+      queue,
+    }),
     redis,
   });
 
@@ -43,7 +54,13 @@ async function main(): Promise<void> {
     app.log.info({ signal }, 'shutting down');
     await app.close();
     await worker?.close();
-    await Promise.allSettled([prisma.$disconnect(), redis.quit(), workerConnection?.quit()]);
+    await queue.close();
+    await Promise.allSettled([
+      prisma.$disconnect(),
+      redis.quit(),
+      queueConnection.quit(),
+      workerConnection?.quit(),
+    ]);
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));

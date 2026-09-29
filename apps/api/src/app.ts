@@ -10,8 +10,10 @@ import type { Redis } from './lib/redis';
 import { authPlugin } from './plugins/auth';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
+import { repositoryRoutes } from './routes/repositories';
 import type { AuthService } from './services/auth.service';
 import type { HealthChecks } from './services/health.service';
+import type { RepositoryService } from './services/repository.service';
 
 export interface AppDeps {
   env: Pick<
@@ -20,6 +22,7 @@ export interface AppDeps {
   >;
   healthChecks: HealthChecks;
   auth: AuthService;
+  repositories: RepositoryService;
   /** Shared rate-limit counters across instances; in-memory when omitted (tests). */
   redis?: Redis;
 }
@@ -28,6 +31,7 @@ export async function buildApp({
   env,
   healthChecks,
   auth,
+  repositories,
   redis,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env), trustProxy: env.TRUST_PROXY });
@@ -85,6 +89,7 @@ export async function buildApp({
     startedAt: Date.now(),
   });
   await app.register(authRoutes, { auth });
+  await app.register(repositoryRoutes, { repositories });
 
   return app;
 }
