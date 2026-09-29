@@ -19,6 +19,8 @@ export interface GraphImport {
   toPath: string | null;
   specifier: string;
   importedNames: string[];
+  /** Names the importing file uses for the bindings (for "imports used" in chunk headers). */
+  localNames: string[];
   kind: ParsedImport['kind'];
   line: number;
   external: boolean;
@@ -99,6 +101,7 @@ export function buildCodeGraph(
           imp.kind === 'reexport'
             ? imp.reexports.map((r) => r.exported)
             : imp.bindings.map((b) => b.imported),
+        localNames: imp.bindings.map((b) => b.local),
         kind: imp.kind,
         line: imp.line,
         external: resolution.external,
