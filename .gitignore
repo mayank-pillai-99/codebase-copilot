@@ -51,3 +51,7 @@ apps/web/next-env.d.ts
 
 # Evaluation runs over unreviewed questions (never published)
 eval/drafts/
+
+# Duplicates created by iCloud Drive sync ("file 2.ts")
+* 2.*
+* 2
