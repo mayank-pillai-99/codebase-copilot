@@ -6,6 +6,7 @@ import { createAuthService } from '../../src/services/auth.service';
 import type { HealthChecks } from '../../src/services/health.service';
 import type { RepositoryService } from '../../src/services/repository.service';
 import type { ChatService } from '../../src/chat/chat.service';
+import type { CodeService } from '../../src/services/code.service';
 import { createInMemoryUsers, fakeHasher } from './fakes';
 
 export const testEnv: AppDeps['env'] = {
@@ -47,6 +48,14 @@ export const unusedChat: ChatService = {
   },
 };
 
+/** Code service for tests that don't exercise it. */
+export const unusedCode: CodeService = {
+  listFiles: async () => [],
+  getFile: async () => {
+    throw new AppError(404, 'File not found in this snapshot');
+  },
+};
+
 /** App wired with in-memory fakes; override any dependency per test. */
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
   return buildApp({
@@ -55,6 +64,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     auth: createAuthService({ users: createInMemoryUsers(), hasher: fakeHasher }),
     repositories: unusedRepositories,
     chat: unusedChat,
+    code: unusedCode,
     ...overrides,
   });
 }

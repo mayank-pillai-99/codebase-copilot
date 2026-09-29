@@ -12,9 +12,11 @@ import type { Redis } from './lib/redis';
 import { authPlugin } from './plugins/auth';
 import { authRoutes } from './routes/auth';
 import { chatRoutes } from './routes/chat';
+import { codeRoutes } from './routes/code';
 import { healthRoutes } from './routes/health';
 import { repositoryRoutes } from './routes/repositories';
 import type { AuthService } from './services/auth.service';
+import type { CodeService } from './services/code.service';
 import type { HealthChecks } from './services/health.service';
 import type { RepositoryService } from './services/repository.service';
 
@@ -27,6 +29,7 @@ export interface AppDeps {
   auth: AuthService;
   repositories: RepositoryService;
   chat: ChatService;
+  code: CodeService;
   /** Daily cap on chat answers per user; omitted in tests. */
   chatQuota?: DailyQuota;
   /** Shared rate-limit counters across instances; in-memory when omitted (tests). */
@@ -39,6 +42,7 @@ export async function buildApp({
   auth,
   repositories,
   chat,
+  code,
   chatQuota,
   redis,
 }: AppDeps): Promise<FastifyInstance> {
@@ -99,6 +103,7 @@ export async function buildApp({
   await app.register(authRoutes, { auth });
   await app.register(repositoryRoutes, { repositories });
   await app.register(chatRoutes, { chat, quota: chatQuota });
+  await app.register(codeRoutes, { code });
 
   return app;
 }

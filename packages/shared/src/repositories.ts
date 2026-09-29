@@ -99,3 +99,31 @@ export type RouteSummary = z.infer<typeof routeSummarySchema>;
 export function isSettled(status: SnapshotStatus): boolean {
   return status === 'READY' || status === 'FAILED';
 }
+
+export const fileEntrySchema = z.object({
+  path: z.string(),
+  kind: z.enum(['CODE', 'DOC', 'CONFIG']),
+  language: z.string(),
+  lineCount: z.number().int(),
+  sizeBytes: z.number().int(),
+});
+
+export const fileListResponseSchema = z.object({ files: z.array(fileEntrySchema) });
+
+export const fileSymbolSchema = z.object({
+  kind: z.string(),
+  name: z.string(),
+  qualifiedName: z.string(),
+  startLine: z.number().int(),
+  endLine: z.number().int(),
+  exported: z.boolean(),
+});
+
+export const fileResponseSchema = z.object({
+  file: fileEntrySchema.extend({ content: z.string(), hasErrors: z.boolean() }),
+  symbols: z.array(fileSymbolSchema),
+});
+
+export type FileEntry = z.infer<typeof fileEntrySchema>;
+export type FileSymbol = z.infer<typeof fileSymbolSchema>;
+export type FileResponse = z.infer<typeof fileResponseSchema>;

@@ -16,6 +16,7 @@ import { createGeminiChatModel } from './llm/chat-model';
 import { GeminiEmbeddings } from './llm/embeddings';
 import { createUserRepository } from './repositories/user.repository';
 import { createAuthService } from './services/auth.service';
+import { createCodeService } from './services/code.service';
 import { createDependencyChecks } from './services/dependency-checks';
 import { createRepositoryService } from './services/repository.service';
 
@@ -59,6 +60,7 @@ async function main(): Promise<void> {
       queue,
     }),
     chat: createChatService({ prisma, retriever, model: chatModel, logger: appLogger }),
+    code: createCodeService(prisma),
     chatQuota: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
     redis,
   });
