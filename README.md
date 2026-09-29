@@ -1,51 +1,139 @@
 # Codebase Copilot
 
-**Paste a GitHub URL, get an onboarding guide to that codebase, grounded in the actual code.**
+**Understand any TypeScript or JavaScript codebase, grounded in the actual code.** Paste a GitHub URL: Codebase Copilot parses the repository into a graph of its symbols, imports, calls and HTTP routes, maps its architecture, traces requests through it, and answers questions with citations to the exact files and lines, checked on the server.
 
-**Live demo: https://codebase-copilot-mu.vercel.app.** Try the demo repositories without an account. It runs on free hosting, so the first visit after a quiet period can take up to a minute to wake the server.
+[![CI](https://github.com/mayank-pillai-99/codebase-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/mayank-pillai-99/codebase-copilot/actions/workflows/ci.yml)
 
-> 🚧 **Status: in development.** Working today: add a public GitHub repository and it's indexed into a code graph and a hybrid search index; browse the code with syntax highlighting; ask questions in a streaming chat whose citations link to the exact lines. Demo repositories can be explored without an account. The architecture map, request tracing, issue locator, onboarding guide and evaluation page are planned. See the [milestones](docs/SPEC.md#21-milestones).
+**[Live demo →](https://codebase-copilot-mu.vercel.app)** Explore the demo repositories without an account. It runs on free hosting, so the first visit after a quiet spell can take up to a minute to wake the server.
 
-## What it will do
+![Codebase Copilot landing page](docs/images/landing.png)
 
-- **Onboarding guide.** Covers purpose, tech stack, architecture, key request flows, and where to start reading, all generated per commit.
-- **Grounded chat.** Ask "how does auth work?" and get an answer where every claim cites `file.ts:42-87` at the indexed commit.
-- **Architecture map.** Built from the real import graph and detected routes; the LLM only names and describes components.
-- **Request tracing.** Answers "What happens when I call `POST /api/payments`?" by walking the call graph.
-- **Issue locator.** An ML model, trained on real GitHub issue→PR data, ranks the files an issue most likely involves.
-- **Public evaluation.** Embedding RAG vs hybrid search vs agentic tool-use retrieval, measured on a pinned benchmark.
+## What it does
+
+### Answers with citations you can check
+
+Ask "how does authentication work?" and get a streamed answer built only from retrieved code. Every `[n]` marker is validated on the server against the sources the model was given, and opens the cited lines at the indexed commit. Invented citations are removed and the answer is flagged.
+
+![A cited answer about authentication](docs/images/chat.png)
+
+### Architecture map
+
+Folders, the imports between them, and the external services they use (databases, payments, auth, AI, email, …), detected from the code and `package.json`. Select anything to see the evidence: the files in a folder, and the exact import lines behind every arrow. Built deterministically from the parsed graph; no AI involved.
+
+![Architecture map of the RealWorld Express API](docs/images/architecture-map.png)
+
+### Request tracing
+
+Pick a route and follow its handler into the functions it calls, breadth-first through the call graph, with a link to every line. Calls that can't be resolved by name (library calls, methods on local variables) are shown as unresolved rather than guessed.
+
+![Trace of POST /articles](docs/images/request-trace.png)
+
+### Measured retrieval
+
+A public [evaluation page](https://codebase-copilot-mu.vercel.app/eval) compares vector, full-text and hybrid search on open-source repositories pinned to exact commits: Recall@5, Recall@10, MRR and nDCG@10 per retriever, broken down by question type and repository. _First results are being run; the page says "not measured yet" until then._
+
+## How it works
+
+```mermaid
+flowchart LR
+  A[GitHub URL] --> B[Tarball at one commit<br/>extracted in memory]
+  B --> C[tree-sitter parse<br/>symbols · imports · calls · routes]
+  C --> D[(Postgres<br/>code graph)]
+  C --> E[Symbol chunks<br/>+ gemini-embedding-2]
+  E --> F[(pgvector + tsvector)]
+  D --> G[Architecture map<br/>request traces]
+  F --> H[Hybrid retrieval<br/>RRF + call-graph hop]
+  H --> I[Streamed answer<br/>server-validated citations]
+```
+
+1. **Ingest.** The repository is downloaded as a tarball at a resolved commit and read in memory. Nothing from it is written to disk or executed. Limits on archive size, file count and chunk count keep it within free hosting.
+2. **Parse.** tree-sitter extracts symbols, imports, calls and HTTP routes (Express-style routers and Next.js route handlers). Imports are resolved through relative paths, `tsconfig` paths and workspace packages; calls are resolved by name through import bindings, re-exports, namespaces, static methods and `this`.
+3. **Index.** Each function, class or method becomes one chunk with a context header, embedded at 768 dimensions and indexed with HNSW, alongside a generated `tsvector` over identifier-split text.
+4. **Retrieve.** Vector and full-text candidates are fused with Reciprocal Rank Fusion, then expanded one hop along the call graph, so a question about a handler also finds the service it calls.
+5. **Answer.** The model sees only numbered excerpts, treats code as untrusted data, and streams over SSE; citations are validated before they're saved. If the primary model is overloaded, it falls back to a lighter one before any text streams.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U[Browser] --> W[Next.js on Vercel<br/>App Router · React 19]
+  W -- "/api/* rewrite<br/>(single origin, httpOnly cookie)" --> A[Fastify API on Render]
+  A --> P[(Neon Postgres<br/>+ pgvector)]
+  A --> R[(Upstash Redis)]
+  R --> Q[BullMQ indexing worker]
+  Q --> P
+  A --> G[Gemini API<br/>embeddings + chat]
+  Q --> G
+```
+
+Everything runs on free tiers with no credit card: see [docs/deployment.md](docs/deployment.md).
 
 ## Tech stack
 
-Next.js · React · TypeScript · Tailwind · Fastify · Prisma · PostgreSQL + pgvector · Redis (BullMQ) · LangChain.js · tree-sitter · Python (model training) · Docker
+| Layer         | Tools                                                                                    |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| Frontend      | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, React Flow + dagre, Shiki |
+| API           | Fastify 5, zod, Prisma 7, BullMQ, pino, JWT in httpOnly cookies, Argon2id                |
+| Data          | PostgreSQL with pgvector (HNSW) and full-text search, Redis                              |
+| Code analysis | web-tree-sitter (TypeScript, TSX, JavaScript grammars)                                   |
+| AI            | Gemini `gemini-embedding-2` (768-d) and Gemini Flash through LangChain.js interfaces     |
+| Quality       | Vitest (unit + integration against real Postgres), ESLint, Prettier, GitHub Actions      |
+| Hosting       | Vercel, Render (Docker), Neon, Upstash                                                   |
+
+## Engineering notes
+
+A few decisions worth reading about. Each has an ADR in [docs/decisions](docs/decisions/).
+
+- **Citations are checked, not trusted.** The server validates every `[n]` against the chunks it retrieved; file paths and line numbers shown to users come from the database, never from model output.
+- **One snapshot per commit, shared by all users.** Commits are immutable, so parsing and embedding happen once per SHA, and all retrieval, caching and answers are scoped to a snapshot.
+- **Hybrid retrieval with graph expansion.** RRF fuses cosine similarity and `ts_rank` without calibrating their scales; a one-hop expansion over resolved call edges pulls in code that shares no words with the question.
+- **Deterministic analysis first.** The architecture map and traces come from the parsed graph and carry evidence (import lines, call sites). They're computed on first request and cached per snapshot with a version, so old snapshots never need re-indexing.
+- **Built for flaky free tiers.** Resumable embedding that survives rate limits, model fallbacks with a first-token deadline, SSE heartbeats through proxies, and a "waking up" state for cold starts.
+- **Measurement over claims.** Retrievers share one interface so they can be benchmarked; the evaluation records dataset versions, pinned SHAs and how the questions were written.
 
 ## Running locally
 
 Requires Node.js 22+ and Docker.
 
 ```bash
-cp .env.example .env
+cp .env.example .env    # add GEMINI_API_KEY for embeddings and chat (free at aistudio.google.com)
 npm install
 npm run infra:up        # Postgres + pgvector (host port 5433) and Redis
 npm run db:migrate
 npm run dev             # web → http://localhost:3000, API → http://localhost:4000, plus the indexing worker
 ```
 
-Sign up, then add a repository on the Repositories page. Setting `GITHUB_TOKEN` in `.env` raises GitHub's API limit from 60 to 5,000 requests per hour.
+Sign up and add a repository, or set `DEMO_REPOSITORIES` to explore some without an account. Pass `GITHUB_TOKEN=$(gh auth token)` to raise GitHub's API limit from 60 to 5,000 requests an hour. Without a Gemini key, indexing and full-text search still work, but chat is unavailable.
 
-To run the whole stack in containers instead: `docker compose --profile app up --build`.
+```bash
+npm run lint && npm run typecheck
+RUN_INTEGRATION=1 npm test                 # needs DATABASE_URL and REDIS_URL from .env
+npm run eval                               # retrieval benchmark (see eval/README.md)
+docker compose --profile app up --build    # whole stack in containers
+```
 
 ## Repository layout
 
 ```text
 apps/web          Next.js frontend (proxies /api/* to the API)
-apps/api          Fastify API, Prisma schema and migrations
-packages/shared   Types and zod schemas shared by web and API
-docs/             Specification and architecture decision records
+apps/api          Fastify API, indexing worker, Prisma schema and migrations
+  src/indexing    tarball → filter → tree-sitter → module resolution → call graph → chunks
+  src/retrieval   vector, full-text and hybrid retrievers behind one interface
+  src/analysis    components, integrations and the architecture map
+  src/chat        prompt, citation validation, streaming service
+  src/eval        benchmark metrics, dataset loader and runner
+packages/shared   zod schemas and types shared by web and API
+eval/             evaluation datasets and committed results
+docs/             specification, ADRs, deployment guide
 ```
+
+## Status
+
+Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the architecture map, request tracing, the evaluation harness and a free-tier deployment. Next: publishing the first evaluation results, then an agentic tool-use retriever benchmarked against hybrid search. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## Documentation
 
 - [Project specification](docs/SPEC.md)
 - [Architecture decisions](docs/decisions/)
+- [Retrieval evaluation](eval/README.md)
 - [Deploying on free tiers](docs/deployment.md)
