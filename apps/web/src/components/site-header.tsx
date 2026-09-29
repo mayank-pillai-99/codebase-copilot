@@ -13,6 +13,9 @@ export async function SiteHeader() {
         </Link>
         {user ? (
           <div className="flex min-w-0 items-center gap-4">
+            <Link href="/eval" className="text-sm font-medium">
+              Evaluation
+            </Link>
             <Link href="/repos" className="text-sm font-medium">
               Repositories
             </Link>
@@ -23,6 +26,12 @@ export async function SiteHeader() {
           </div>
         ) : (
           <div className="flex items-center gap-4 text-sm">
+            <Link
+              href="/eval"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            >
+              Evaluation
+            </Link>
             <Link
               href="/login"
               className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
