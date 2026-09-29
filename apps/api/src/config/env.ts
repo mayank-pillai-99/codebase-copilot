@@ -26,6 +26,15 @@ const envSchema = z.object({
   MAX_SOURCE_FILES: z.coerce.number().int().positive().default(2_000),
   MAX_FILE_KB: z.coerce.number().positive().default(200),
   MAX_TOTAL_SOURCE_MB: z.coerce.number().positive().default(30),
+
+  // Google AI Studio key for embeddings and chat (ADR 0004). Empty = AI features off:
+  // indexing still works, search falls back to full-text only.
+  GEMINI_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => value || undefined),
+  // Changing the embedding model requires re-indexing (the vector column is 768-dimension).
+  EMBEDDING_MODEL: z.string().default('gemini-embedding-2'),
 });
 
 export type Env = z.infer<typeof envSchema>;

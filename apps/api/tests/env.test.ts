@@ -63,6 +63,11 @@ describe('indexing settings', () => {
     });
   });
 
+  it('turns AI features off when GEMINI_API_KEY is empty', () => {
+    expect(parseEnv({ ...valid, GEMINI_API_KEY: '' }).GEMINI_API_KEY).toBeUndefined();
+    expect(parseEnv(valid).EMBEDDING_MODEL).toBe('gemini-embedding-2');
+  });
+
   it('treats an empty GITHUB_TOKEN as no token', () => {
     expect(parseEnv({ ...valid, GITHUB_TOKEN: '' }).GITHUB_TOKEN).toBeUndefined();
     expect(parseEnv({ ...valid, GITHUB_TOKEN: 'ghp_x' }).GITHUB_TOKEN).toBe('ghp_x');
