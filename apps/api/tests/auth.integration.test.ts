@@ -1,10 +1,10 @@
+import { SESSION_COOKIE } from '@codebase-copilot/shared';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { argon2Hasher } from '../src/lib/password';
 import { createPrisma, type PrismaClient } from '../src/lib/prisma';
 import { createRedis, type Redis } from '../src/lib/redis';
-import { SESSION_COOKIE } from '../src/plugins/auth';
 import { createUserRepository } from '../src/repositories/user.repository';
 import { createAuthService } from '../src/services/auth.service';
 import { buildTestApp } from './support/app';

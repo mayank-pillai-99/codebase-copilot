@@ -35,3 +35,6 @@ export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type PublicUser = z.infer<typeof publicUserSchema>;
 export type AuthResponse = z.infer<typeof authResponseSchema>;
+
+/** Name of the httpOnly session cookie set by the API and forwarded by the web server. */
+export const SESSION_COOKIE = 'cc_session';

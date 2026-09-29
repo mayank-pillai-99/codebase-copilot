@@ -1,10 +1,10 @@
+import { SESSION_COOKIE } from '@codebase-copilot/shared';
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import { AppError } from '../lib/errors';
 
-export const SESSION_COOKIE = 'cc_session';
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 declare module '@fastify/jwt' {

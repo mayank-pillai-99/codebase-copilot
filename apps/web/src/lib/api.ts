@@ -1,7 +1,6 @@
+import 'server-only';
 import { healthResponseSchema, type HealthResponse } from '@codebase-copilot/shared';
-
-/** Server-side base URL of the Fastify API. Browser code should call relative `/api/*` paths instead. */
-const API_URL = process.env.API_URL ?? 'http://localhost:4000';
+import { API_URL } from './config';
 
 export type HealthResult = { reachable: true; health: HealthResponse } | { reachable: false };
 

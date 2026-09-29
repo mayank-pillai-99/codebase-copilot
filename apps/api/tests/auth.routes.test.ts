@@ -1,7 +1,6 @@
-import { authResponseSchema } from '@codebase-copilot/shared';
+import { authResponseSchema, SESSION_COOKIE } from '@codebase-copilot/shared';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SESSION_COOKIE } from '../src/plugins/auth';
 import { buildTestApp, testEnv } from './support/app';
 
 let app: FastifyInstance;
