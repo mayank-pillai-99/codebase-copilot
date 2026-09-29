@@ -6,7 +6,7 @@ Codebase Copilot: paste a GitHub URL, get an onboarding guide to that codebase, 
 
 ## Current status
 
-Milestones 1–3 are done: foundation, auth (ADR 0002), and repository ingestion (ADR 0003). A GitHub URL becomes a snapshot of one commit with files, symbols, import/call edges and routes, indexed by a BullMQ worker. Next: Milestone 4 (chunks, embeddings, hybrid retrieval, grounded chat, code viewer, first deploy). See `docs/SPEC.md` §21.
+Milestones 1–4 are done: foundation, auth (ADR 0002), repository ingestion (ADR 0003), and search + grounded chat (ADR 0004): symbol chunks, gemini-embedding-2 vectors, hybrid retrieval, streamed chat with server-validated citations, the code viewer, public demo repositories, and free-tier deploy config (`docs/deployment.md`). Next: Milestone 5 (evaluation harness). See `docs/SPEC.md` §21.
 
 ## Stack
 
@@ -41,6 +41,10 @@ docker compose --profile app up --build   # whole stack in containers
 - Web tests: `npm test --workspace @codebase-copilot/web` (vitest, pure `lib/` functions).
 - Indexing lives in `apps/api/src/indexing/`: `tarball.ts` (in-memory extraction and limits) → `parser.ts` (tree-sitter) → `routes.ts` → `modules.ts` (import resolution) → `graph.ts` (links calls and handlers) → `persist.ts`, orchestrated by `indexer.ts`. Test repos are built in memory with `tests/support/tar.ts` and `fixture-repo.ts`.
 - Integration tests: `RUN_INTEGRATION=1` with `DATABASE_URL` and `REDIS_URL` set. They use unique names and clean up after themselves.
+- Migrations: `prisma migrate dev --create-only` always adds `DROP INDEX "chunks_embedding_hnsw_idx"`, because Prisma can't declare HNSW. **Delete that line** before applying (use `prisma migrate deploy` in non-interactive shells). `npm run db:check-drift --workspace @codebase-copilot/api` (in CI) catches anything else.
+- Retrieval and chat: `src/retrieval/` (vector, fulltext and hybrid, all behind the `Retriever` interface), `src/chat/` (prompt, citation checks, service), `src/llm/` (Gemini embeddings as a LangChain `Embeddings`, chat through LangChain). Tests use `hashingEmbedder()` and scripted chat models, never the network.
+- Access to snapshot data goes through `findVisibleSnapshot()` in `src/services/snapshot-access.ts`: tracked by the viewer, or listed in `DEMO_REPOSITORIES`. Routes that demo visitors may use take `app.identify` (optional auth) and `viewerId(request)`.
+- Without `GEMINI_API_KEY`, indexing still works (full-text search only) and chat answers 503.
 - Without `GITHUB_TOKEN`, GitHub allows 60 API requests/hour per IP. For local testing, pass one in the environment rather than writing it to `.env`, e.g. `GITHUB_TOKEN=$(gh auth token) npm run dev`.
 
 ## Hard rules

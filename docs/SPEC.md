@@ -424,30 +424,37 @@ Free hosted Redis often limits commands per day/month and BullMQ polls continuou
 
 ---
 
-## 13. API (indicative)
+## 13. API
+
+Built so far (✓) and planned. "public" means readable without a session for demo repositories.
 
 ```text
-POST   /api/auth/register
-POST   /api/auth/login
-POST   /api/auth/logout
-GET    /api/auth/me
+✓ POST   /api/auth/register | /login | /logout
+✓ GET    /api/auth/me
 
-POST   /api/repos                           { url, ref? } → { repositoryId, snapshotId }
-GET    /api/repos                            user's + demo repos
-GET    /api/snapshots/:id                    status, progress, stats
-GET    /api/snapshots/:id/tree               file tree
-GET    /api/snapshots/:id/files?path=        file content + symbols
-GET    /api/snapshots/:id/guide              onboarding guide
-GET    /api/snapshots/:id/architecture       nodes + edges
-GET    /api/snapshots/:id/routes
-POST   /api/snapshots/:id/trace              { routeId } → SSE
-POST   /api/snapshots/:id/search             { query, retriever? }
-POST   /api/snapshots/:id/chat               { sessionId?, message, retriever? } → SSE
-POST   /api/snapshots/:id/locate-issue       { issueUrl | title+body }
+✓ POST   /api/repos                            { url } → { snapshot }   (URL may include /tree/<ref>)
+✓ GET    /api/repos                            the user's tracked repositories + latest snapshot
+✓ GET    /api/demo                             demo repositories (public)
+✓ GET    /api/snapshots/:id                    status, progress, stats            (public for demos)
+✓ GET    /api/snapshots/:id/routes             detected routes + handlers         (public for demos)
+✓ GET    /api/snapshots/:id/files              file list                          (public for demos)
+✓ GET    /api/snapshots/:id/file?path=         file content + symbol outline      (public for demos)
+✓ POST   /api/snapshots/:id/chat               { message, sessionId? } → SSE      (public for demos)
+✓ GET    /api/snapshots/:id/chat/sessions      the user's conversations
+✓ GET    /api/chat/sessions/:sessionId         messages + validated citations
 
-GET    /api/eval/latest
-GET    /api/health
+  GET    /api/snapshots/:id/guide              onboarding guide                   (Milestone 9)
+  GET    /api/snapshots/:id/architecture       nodes + edges                      (Milestone 7)
+  POST   /api/snapshots/:id/trace              { routeId } → SSE                  (Milestone 7)
+  POST   /api/snapshots/:id/search             { query, retriever? }              (Milestone 5)
+  POST   /api/snapshots/:id/locate-issue       { issueUrl | title+body }          (Milestone 8)
+  GET    /api/eval/latest                                                          (Milestone 5)
+
+✓ GET    /api/health                           dependency status (503 if degraded)
+✓ GET    /api/health/live                      liveness for the hosting platform
 ```
+
+Chat SSE events, in order: `session`, `sources`, `token`…, `done` (final text with invalid citation markers removed, validated citations, `flagged`), or `error` at any point.
 
 All inputs validated with zod. Shared request/response types live in `packages/shared`.
 

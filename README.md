@@ -2,7 +2,7 @@
 
 **Paste a GitHub URL, get an onboarding guide to that codebase, grounded in the actual code.**
 
-> 🚧 **Status: in development.** You can add a public GitHub repository and it gets indexed into a code graph (symbols, imports, calls, HTTP routes). Chat, the architecture map and the rest of the features below are planned, not built yet. See the [milestones](docs/SPEC.md#21-milestones).
+> 🚧 **Status: in development.** Working today: add a public GitHub repository and it's indexed into a code graph and a hybrid search index; browse the code with syntax highlighting; ask questions in a streaming chat whose citations link to the exact lines. Demo repositories can be explored without an account. The architecture map, request tracing, issue locator, onboarding guide and evaluation page are planned. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## What it will do
 
@@ -46,3 +46,4 @@ docs/             Specification and architecture decision records
 
 - [Project specification](docs/SPEC.md)
 - [Architecture decisions](docs/decisions/)
+- [Deploying on free tiers](docs/deployment.md)
