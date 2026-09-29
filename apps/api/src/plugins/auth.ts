@@ -88,3 +88,13 @@ export function viewerId(request: FastifyRequest): string | null {
   const user = request.user as { sub?: string } | undefined;
   return user?.sub ?? null;
 }
+
+/** Rate-limit key: per signed-in user rather than per IP (many users can share an IP). */
+export async function rateLimitKey(request: FastifyRequest): Promise<string> {
+  try {
+    await request.jwtVerify();
+    return `user:${request.user.sub}`;
+  } catch {
+    return `ip:${request.ip}`;
+  }
+}

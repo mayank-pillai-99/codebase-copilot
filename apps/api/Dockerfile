@@ -29,6 +29,8 @@ COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
 COPY --from=build /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=build /app/apps/api/dist ./apps/api/dist
+# Committed evaluation results, imported into the database at startup (/eval page).
+COPY eval/results ./eval/results
 WORKDIR /app/apps/api
 USER node
 EXPOSE 4000

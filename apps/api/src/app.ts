@@ -13,12 +13,16 @@ import { authPlugin } from './plugins/auth';
 import { authRoutes } from './routes/auth';
 import { chatRoutes } from './routes/chat';
 import { codeRoutes } from './routes/code';
+import { evalRoutes } from './routes/eval';
 import { healthRoutes } from './routes/health';
 import { repositoryRoutes } from './routes/repositories';
+import { searchRoutes } from './routes/search';
 import type { AuthService } from './services/auth.service';
 import type { CodeService } from './services/code.service';
+import type { EvalService } from './services/eval.service';
 import type { HealthChecks } from './services/health.service';
 import type { RepositoryService } from './services/repository.service';
+import type { SearchService } from './services/search.service';
 
 export interface AppDeps {
   env: Pick<
@@ -30,6 +34,8 @@ export interface AppDeps {
   repositories: RepositoryService;
   chat: ChatService;
   code: CodeService;
+  search: SearchService;
+  evals: EvalService;
   /** Daily caps on chat answers (per user, and per IP for anonymous demo visitors); omitted in tests. */
   chatQuota?: { user: DailyQuota; anonymous: DailyQuota };
   /** Overrides the SSE heartbeat interval (tests). */
@@ -45,6 +51,8 @@ export async function buildApp({
   repositories,
   chat,
   code,
+  search,
+  evals,
   chatQuota,
   chatHeartbeatMs,
   redis,
@@ -111,6 +119,8 @@ export async function buildApp({
     ...(chatHeartbeatMs && { heartbeatMs: chatHeartbeatMs }),
   });
   await app.register(codeRoutes, { code });
+  await app.register(searchRoutes, { search });
+  await app.register(evalRoutes, { evals });
 
   return app;
 }

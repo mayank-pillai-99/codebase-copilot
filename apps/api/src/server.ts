@@ -18,7 +18,9 @@ import { createUserRepository } from './repositories/user.repository';
 import { createAuthService } from './services/auth.service';
 import { createCodeService } from './services/code.service';
 import { createDependencyChecks } from './services/dependency-checks';
+import { createEvalService, importEvalResults } from './services/eval.service';
 import { createRepositoryService } from './services/repository.service';
+import { createSearchService } from './services/search.service';
 import { parseDemoRepositories } from './services/snapshot-access';
 
 async function main(): Promise<void> {
@@ -37,11 +39,9 @@ async function main(): Promise<void> {
   const embeddings = env.GEMINI_API_KEY
     ? new GeminiEmbeddings({ apiKey: env.GEMINI_API_KEY, model: env.EMBEDDING_MODEL })
     : null;
-  const retriever = createHybridRetriever(
-    prisma,
-    createVectorRetriever(prisma, embeddings),
-    createFullTextRetriever(prisma),
-  );
+  const vector = createVectorRetriever(prisma, embeddings);
+  const fulltext = createFullTextRetriever(prisma);
+  const retriever = createHybridRetriever(prisma, vector, fulltext);
   const chatModels = [env.LLM_MODEL, ...env.LLM_FALLBACK_MODELS.split(',')]
     .map((model) => model.trim())
     .filter((model, i, all) => model && all.indexOf(model) === i);
@@ -69,6 +69,12 @@ async function main(): Promise<void> {
     repositories,
     chat: createChatService({ prisma, retriever, model: chatModel, logger: appLogger, demo }),
     code: createCodeService(prisma, demo),
+    search: createSearchService({
+      prisma,
+      retrievers: { hybrid: retriever, vector, fulltext },
+      demo,
+    }),
+    evals: createEvalService(prisma),
     chatQuota: {
       user: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
       anonymous: createDailyQuota(redis, 'demo-chat', env.DEMO_CHAT_DAILY_LIMIT),
@@ -112,6 +118,10 @@ async function main(): Promise<void> {
   });
 
   await app.listen({ host: env.HOST, port: env.PORT });
+
+  importEvalResults(prisma, env.EVAL_RESULTS_DIR)
+    .then((added) => added && app.log.info({ added }, 'evaluation results imported'))
+    .catch((err: unknown) => app.log.error({ err }, 'importing evaluation results failed'));
 
   // Index demo repositories in the background; the API is usable meanwhile.
   if (demo.length) {

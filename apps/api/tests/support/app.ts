@@ -7,6 +7,8 @@ import type { HealthChecks } from '../../src/services/health.service';
 import type { RepositoryService } from '../../src/services/repository.service';
 import type { ChatService } from '../../src/chat/chat.service';
 import type { CodeService } from '../../src/services/code.service';
+import type { EvalService } from '../../src/services/eval.service';
+import type { SearchService } from '../../src/services/search.service';
 import { createInMemoryUsers, fakeHasher } from './fakes';
 
 export const testEnv: AppDeps['env'] = {
@@ -58,6 +60,16 @@ export const unusedCode: CodeService = {
   },
 };
 
+/** Search service for tests that don't exercise it. */
+export const unusedSearch: SearchService = {
+  search: async () => {
+    throw new AppError(404, 'Not found');
+  },
+};
+
+/** No evaluation has been run. */
+export const noEvals: EvalService = { latest: async () => null };
+
 /** App wired with in-memory fakes; override any dependency per test. */
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
   return buildApp({
@@ -67,6 +79,8 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     repositories: unusedRepositories,
     chat: unusedChat,
     code: unusedCode,
+    search: unusedSearch,
+    evals: noEvals,
     ...overrides,
   });
 }

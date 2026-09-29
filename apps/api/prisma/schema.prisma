@@ -326,3 +326,22 @@ model MessageCitation {
   @@index([messageId])
   @@map("message_citations")
 }
+
+/// One evaluation run (SPEC §8). The id is chosen by the runner, so the JSON file
+/// committed under eval/results/ and this row are the same run.
+model EvalRun {
+  id             String   @id @db.Uuid
+  /// retrieval (Milestone 5); answer and ml later.
+  kind           String
+  datasetVersion String   @map("dataset_version")
+  /// Models, k, repos and SHAs, code version.
+  config         Json
+  /// Aggregated metrics per retriever.
+  metrics        Json
+  /// Per-question results, for the breakdowns on /eval and for debugging.
+  results        Json
+  createdAt      DateTime @map("created_at")
+
+  @@index([kind, createdAt])
+  @@map("eval_runs")
+}

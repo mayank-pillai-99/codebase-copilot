@@ -3,7 +3,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type { ChatService } from '../chat/chat.service';
 import { AppError } from '../lib/errors';
 import type { DailyQuota } from '../lib/quota';
-import { viewerId } from '../plugins/auth';
+import { rateLimitKey, viewerId } from '../plugins/auth';
 
 export interface ChatRouteOptions {
   chat: ChatService;
@@ -16,19 +16,9 @@ export interface ChatRouteOptions {
 type SnapshotParams = { Params: { id: string } };
 type SessionParams = { Params: { sessionId: string } };
 
-/** Rate-limit per signed-in user rather than per IP (many users can share an IP). */
-async function userKey(request: FastifyRequest): Promise<string> {
-  try {
-    await request.jwtVerify();
-    return `user:${request.user.sub}`;
-  } catch {
-    return `ip:${request.ip}`;
-  }
-}
-
 /** Anonymous visitors (demo repositories only) get a lower per-minute limit. */
 async function maxPerMinute(request: FastifyRequest): Promise<number> {
-  return (await userKey(request)).startsWith('user:') ? 10 : 4;
+  return (await rateLimitKey(request)).startsWith('user:') ? 10 : 4;
 }
 
 export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (
@@ -41,7 +31,9 @@ export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (
   app.post<SnapshotParams>(
     '/api/snapshots/:id/chat',
     {
-      config: { rateLimit: { max: maxPerMinute, timeWindow: '1 minute', keyGenerator: userKey } },
+      config: {
+        rateLimit: { max: maxPerMinute, timeWindow: '1 minute', keyGenerator: rateLimitKey },
+      },
     },
     async (request, reply) => {
       const { message, sessionId } = chatRequestSchema.parse(request.body);

@@ -58,6 +58,9 @@ const envSchema = z.object({
   DEMO_REPOSITORIES: z.string().default(''),
   // Anonymous demo answers per IP per day.
   DEMO_CHAT_DAILY_LIMIT: z.coerce.number().int().positive().default(20),
+  // Committed evaluation results, imported into the database at startup (relative to
+  // the API's working directory, apps/api).
+  EVAL_RESULTS_DIR: z.string().default('../../eval/results'),
 });
 
 export type Env = z.infer<typeof envSchema>;

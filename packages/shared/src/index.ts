@@ -3,3 +3,5 @@ export * from './health';
 export * from './github';
 export * from './repositories';
 export * from './chat';
+export * from './search';
+export * from './eval';
