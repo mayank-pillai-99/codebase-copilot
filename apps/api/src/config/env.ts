@@ -9,6 +9,10 @@ const envSchema = z.object({
   REDIS_URL: z.url({ protocol: /^rediss?$/ }),
   WEB_ORIGIN: z.url().default('http://localhost:3000'),
   APP_VERSION: z.string().default('0.0.0'),
+  // Generate with: openssl rand -base64 48
+  JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  // Set to true only when the API sits behind a proxy that sets X-Forwarded-For (Render, Next.js rewrites).
+  TRUST_PROXY: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -4,7 +4,24 @@ import { EnvError, parseEnv } from '../src/config/env';
 const valid = {
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/codebase_copilot',
   REDIS_URL: 'redis://localhost:6379',
+  JWT_SECRET: 'a-secret-that-is-at-least-32-characters',
 };
+
+describe('auth settings', () => {
+  it('requires a JWT secret of at least 32 characters', () => {
+    const { JWT_SECRET: _omitted, ...withoutSecret } = valid;
+    expect(() => parseEnv(withoutSecret)).toThrow(/JWT_SECRET/);
+    expect(() => parseEnv({ ...valid, JWT_SECRET: 'too-short' })).toThrow(
+      /JWT_SECRET: must be at least 32 characters/,
+    );
+  });
+
+  it('parses TRUST_PROXY as a boolean and defaults it to false', () => {
+    expect(parseEnv(valid).TRUST_PROXY).toBe(false);
+    expect(parseEnv({ ...valid, TRUST_PROXY: 'true' }).TRUST_PROXY).toBe(true);
+    expect(() => parseEnv({ ...valid, TRUST_PROXY: 'maybe' })).toThrow(/TRUST_PROXY/);
+  });
+});
 
 describe('parseEnv', () => {
   it('applies defaults for optional settings', () => {

@@ -39,6 +39,10 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/codebase_copilot
       REDIS_URL: redis://redis:6379
       WEB_ORIGIN: http://localhost:3000
+      # Local-only value; real deployments set their own secret.
+      JWT_SECRET: local-docker-only-secret-not-for-production-use
+      # Requests arrive through the web container's rewrite proxy.
+      TRUST_PROXY: 'true'
     ports:
       - '4000:4000'
     depends_on:

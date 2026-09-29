@@ -1,21 +1,7 @@
 import { healthResponseSchema } from '@codebase-copilot/shared';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app';
-import type { HealthChecks } from '../src/services/health.service';
-
-const env = {
-  NODE_ENV: 'test',
-  LOG_LEVEL: 'silent',
-  WEB_ORIGIN: 'http://localhost:3000',
-  APP_VERSION: '1.2.3',
-} as const;
-
-const healthy: HealthChecks = {
-  database: async () => undefined,
-  pgvector: async () => 'v0.8.0',
-  redis: async () => undefined,
-};
+import { buildTestApp, healthyChecks } from './support/app';
 
 let app: FastifyInstance | undefined;
 afterEach(async () => {
@@ -25,7 +11,7 @@ afterEach(async () => {
 
 describe('GET /api/health', () => {
   it('returns 200 and a schema-valid body when every dependency is up', async () => {
-    app = await buildApp({ env, healthChecks: healthy });
+    app = await buildTestApp();
     const res = await app.inject({ method: 'GET', url: '/api/health' });
 
     expect(res.statusCode).toBe(200);
@@ -36,10 +22,9 @@ describe('GET /api/health', () => {
   });
 
   it('returns 503 and names the failing dependency', async () => {
-    app = await buildApp({
-      env,
+    app = await buildTestApp({
       healthChecks: {
-        ...healthy,
+        ...healthyChecks,
         redis: async () => {
           throw new Error('connection refused');
         },
@@ -57,7 +42,7 @@ describe('GET /api/health', () => {
 
 describe('error handling', () => {
   it('returns JSON 404 for unknown routes', async () => {
-    app = await buildApp({ env, healthChecks: healthy });
+    app = await buildTestApp();
     const res = await app.inject({ method: 'GET', url: '/api/nope' });
 
     expect(res.statusCode).toBe(404);
@@ -65,7 +50,7 @@ describe('error handling', () => {
   });
 
   it('hides internal error details from clients', async () => {
-    app = await buildApp({ env, healthChecks: healthy });
+    app = await buildTestApp();
     app.get('/api/boom', async () => {
       throw new Error('secret internal detail');
     });
