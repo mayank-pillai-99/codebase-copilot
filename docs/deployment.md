@@ -68,6 +68,7 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
 
 ## Troubleshooting
 
+- **Health shows `redis: "Stream isn't writeable…"`**: `REDIS_URL` must start with `rediss://` (TLS). Upstash's connect page also shows `redis://` URLs meant for `redis-cli --tls`. The API now refuses to start with an Upstash URL that isn't `rediss://`.
 - **`403 PERMISSION_DENIED: "Your project has been denied access"`** on every model call: the AI Studio _project_ is blocked. Create a key in a **new project** (Get API key → Create API key in new project). If that fails too, try a different personal Google account.
 - **Chat says the models are overloaded:** free-tier Gemini models are busy at times. The API already falls back to `LLM_FALLBACK_MODELS`; add more comma-separated models from the list your key can see, or wait a minute.
 - **Embedding takes minutes for a repository:** per-minute free-tier limits. The indexer backs off and continues on its own; the progress bar keeps moving.

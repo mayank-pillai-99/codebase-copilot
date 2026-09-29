@@ -45,6 +45,12 @@ describe('parseEnv', () => {
     );
   });
 
+  it('rejects non-TLS Upstash URLs with a hint', () => {
+    expect(() =>
+      parseEnv({ ...valid, REDIS_URL: 'redis://default:pw@example.upstash.io:6379' }),
+    ).toThrow(/REDIS_URL: Upstash requires TLS: use rediss:\/\//);
+  });
+
   it('accepts TLS Redis URLs used by hosted providers', () => {
     expect(
       parseEnv({ ...valid, REDIS_URL: 'rediss://default:pw@example.upstash.io:6379' }).REDIS_URL,

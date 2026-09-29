@@ -6,7 +6,16 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
-  REDIS_URL: z.url({ protocol: /^rediss?$/ }),
+  REDIS_URL: z
+    .url({ protocol: /^rediss?$/ })
+    // Upstash only accepts TLS; a redis:// URL connects and is dropped at once, which
+    // otherwise surfaces much later as "Stream isn't writeable".
+    .refine(
+      (url) => !(url.startsWith('redis://') && new URL(url).hostname.endsWith('.upstash.io')),
+      {
+        message: 'Upstash requires TLS: use rediss:// (two s) instead of redis://',
+      },
+    ),
   WEB_ORIGIN: z.url().default('http://localhost:3000'),
   APP_VERSION: z.string().default('0.0.0'),
   // Generate with: openssl rand -base64 48
