@@ -1,0 +1,11 @@
+// Application schema. Models are added milestone by milestone (see docs/SPEC.md §11).
+// Columns of type vector/tsvector use Unsupported(...) and are read/written with raw SQL.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

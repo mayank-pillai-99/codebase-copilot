@@ -2,7 +2,7 @@
 
 **Paste a GitHub URL, get an onboarding guide to that codebase, grounded in the actual code.**
 
-> 🚧 **Status: in development.** This repository currently contains the specification. Features below are planned, not yet built.
+> 🚧 **Status: in development.** Milestone 1 (foundation) is done. The features below are planned, not built yet. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## What it will do
 
@@ -17,6 +17,32 @@
 
 Next.js · React · TypeScript · Tailwind · Fastify · Prisma · PostgreSQL + pgvector · Redis (BullMQ) · LangChain.js · tree-sitter · Python (model training) · Docker
 
+## Running locally
+
+Requires Node.js 22+ and Docker.
+
+```bash
+cp .env.example .env
+npm install
+npm run infra:up        # Postgres + pgvector (host port 5433) and Redis
+npm run db:migrate
+npm run dev             # web → http://localhost:3000, API → http://localhost:4000
+```
+
+The home page shows live status for the API, PostgreSQL, pgvector and Redis.
+
+To run the whole stack in containers instead: `docker compose --profile app up --build`.
+
+## Repository layout
+
+```text
+apps/web          Next.js frontend (proxies /api/* to the API)
+apps/api          Fastify API, Prisma schema and migrations
+packages/shared   Types and zod schemas shared by web and API
+docs/             Specification and architecture decision records
+```
+
 ## Documentation
 
 - [Project specification](docs/SPEC.md)
+- [Architecture decisions](docs/decisions/)

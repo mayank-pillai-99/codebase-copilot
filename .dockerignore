@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.next
+**/src/generated
+.git
+.env
+.env.*
+!.env.example
+*.md
+!apps/**/*.md

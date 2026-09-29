@@ -1,0 +1,35 @@
+{
+  "name": "codebase-copilot",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @codebase-copilot/api & npm run dev --workspace @codebase-copilot/web & wait",
+    "dev:api": "npm run dev --workspace @codebase-copilot/api",
+    "dev:web": "npm run dev --workspace @codebase-copilot/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose up -d postgres redis",
+    "infra:down": "docker compose down",
+    "db:migrate": "npm run db:migrate --workspace @codebase-copilot/api",
+    "db:generate": "npm run db:generate --workspace @codebase-copilot/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0"
+  }
+}

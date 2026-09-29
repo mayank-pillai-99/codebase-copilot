@@ -24,15 +24,15 @@ The product is a **codebase onboarding tool**, not a generic "chat with your cod
 
 This is a portfolio project targeting **full-stack** and **AI engineer** roles. It should demonstrate, with evidence:
 
-| Skill | Where it shows up |
-|---|---|
+| Skill                          | Where it shows up                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
 | Full-stack product engineering | Next.js UI with code viewer, interactive architecture map, streamed chat, job progress |
-| Backend engineering | Typed REST API, background job pipeline, relational data model, caching, rate limiting |
-| Program analysis | tree-sitter parsing, symbol extraction, import/call graphs, route detection |
-| Retrieval engineering | Symbol-aware chunking, hybrid search, agentic tool-use retrieval |
-| AI engineering | Grounded generation, server-validated citations, tool use, **measured evaluation** |
-| Machine learning | Issue → file localization model trained on real issue/PR data, with baselines |
-| Infrastructure | Docker Compose locally, free-tier cloud deployment |
+| Backend engineering            | Typed REST API, background job pipeline, relational data model, caching, rate limiting |
+| Program analysis               | tree-sitter parsing, symbol extraction, import/call graphs, route detection            |
+| Retrieval engineering          | Symbol-aware chunking, hybrid search, agentic tool-use retrieval                       |
+| AI engineering                 | Grounded generation, server-validated citations, tool use, **measured evaluation**     |
+| Machine learning               | Issue → file localization model trained on real issue/PR data, with baselines          |
+| Infrastructure                 | Docker Compose locally, free-tier cloud deployment                                     |
 
 The differentiator is **measurement**. Most "chat with your repo" projects have no evaluation. This project compares retrieval strategies and an ML model against baselines, and publishes honest numbers.
 
@@ -46,7 +46,7 @@ Explicitly out of scope. Do not build these unless this spec is changed:
 - Private repositories / GitHub App installation (public repos only for MVP)
 - Languages other than TypeScript/JavaScript (Python is a stretch goal)
 - A separate vector database, a separate Python inference service, microservices, Kubernetes, Kafka
-- A general "knowledge graph" module — the symbol/import/call graph in Postgres *is* the graph
+- A general "knowledge graph" module — the symbol/import/call graph in Postgres _is_ the graph
 - Enterprise auth (SSO, orgs, RBAC)
 
 ---
@@ -55,20 +55,20 @@ Explicitly out of scope. Do not build these unless this spec is changed:
 
 Treat these as requirements unless this document is explicitly changed.
 
-| Area | Constraint |
-|---|---|
-| Frontend | Next.js (App Router) + React + TypeScript + Tailwind CSS |
-| Backend | Node.js + TypeScript, REST, **Fastify** + **zod** validation |
-| ORM | **Prisma** — the only ORM. Raw SQL (parameterized, via Prisma) only for pgvector / full-text operations |
-| Database | PostgreSQL + **pgvector** — the only persistent store for app data and vectors |
-| Queue / cache | **Redis** via **BullMQ**, isolated behind an adapter |
-| AI orchestration | **LangChain.js** inside the Node backend (no separate LangChain/Python server) |
-| Parsing | **tree-sitter** (prefer `web-tree-sitter` WASM for portable deploys) |
-| ML | Trained in Python; **inference runs in Node** from an exported model artifact |
-| Containers | Docker + Docker Compose for local development |
-| Deployment | **Free tier, no credit card** for the initial public deployment |
-| LLM / embeddings | Provider-agnostic via env config; Ollama supported for local development |
-| TypeScript | `strict: true` everywhere; no `any` without a comment explaining why |
+| Area             | Constraint                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| Frontend         | Next.js (App Router) + React + TypeScript + Tailwind CSS                                                |
+| Backend          | Node.js + TypeScript, REST, **Fastify** + **zod** validation                                            |
+| ORM              | **Prisma** — the only ORM. Raw SQL (parameterized, via Prisma) only for pgvector / full-text operations |
+| Database         | PostgreSQL + **pgvector** — the only persistent store for app data and vectors                          |
+| Queue / cache    | **Redis** via **BullMQ**, isolated behind an adapter                                                    |
+| AI orchestration | **LangChain.js** inside the Node backend (no separate LangChain/Python server)                          |
+| Parsing          | **tree-sitter** (prefer `web-tree-sitter` WASM for portable deploys)                                    |
+| ML               | Trained in Python; **inference runs in Node** from an exported model artifact                           |
+| Containers       | Docker + Docker Compose for local development                                                           |
+| Deployment       | **Free tier, no credit card** for the initial public deployment                                         |
+| LLM / embeddings | Provider-agnostic via env config; Ollama supported for local development                                |
+| TypeScript       | `strict: true` everywhere; no `any` without a comment explaining why                                    |
 
 ---
 
@@ -158,6 +158,7 @@ User pastes a GitHub issue URL or text. The ML model ranks the files most likely
 Skip: `node_modules/`, `dist/`, `build/`, `.next/`, `coverage/`, `vendor/`, lockfiles, minified files (`*.min.js`, very long lines), source maps, binaries/images/fonts, generated files (detect common headers like `@generated`), and paths matched by the repo's `.gitignore` where practical.
 
 Index:
+
 - **Code:** `.ts .tsx .js .jsx .mjs .cjs`
 - **Docs:** `README*`, `*.md`, `docs/**`
 - **Config (metadata only, not chunked for embedding):** `package.json`, `tsconfig.json`, `Dockerfile`, `docker-compose*.yml`, `.env.example`, framework configs
@@ -222,29 +223,33 @@ interface Retriever {
 ```
 
 ### 6.1 `vector`
+
 Embed the query → pgvector cosine search (HNSW index) scoped to the snapshot → top k.
 
 ### 6.2 `hybrid` (default)
+
 1. Vector search (top 50) and Postgres full-text search over chunk `tsvector` (top 50), with identifier-aware tokenization (split `camelCase`, `snake_case`, paths).
 2. Fuse with **Reciprocal Rank Fusion**.
 3. **Graph expansion:** for the top results, add closely connected symbols (callees/callers one hop, the route that invokes it) with a decayed score.
 4. Return top k.
 
 ### 6.3 `agentic`
+
 An LLM with tools and a bounded loop (max steps and max tokens configurable):
 
-| Tool | Behaviour |
-|---|---|
-| `search_code(query)` | Full-text / identifier search over the snapshot |
-| `semantic_search(query)` | The vector retriever |
-| `list_dir(path)` | Directory listing |
-| `read_file(path, startLine, endLine)` | Returns a bounded line range |
-| `find_symbol(name)` | Symbol lookup |
-| `find_references(symbolId)` | Callers / importers from the graph |
+| Tool                                  | Behaviour                                       |
+| ------------------------------------- | ----------------------------------------------- |
+| `search_code(query)`                  | Full-text / identifier search over the snapshot |
+| `semantic_search(query)`              | The vector retriever                            |
+| `list_dir(path)`                      | Directory listing                               |
+| `read_file(path, startLine, endLine)` | Returns a bounded line range                    |
+| `find_symbol(name)`                   | Symbol lookup                                   |
+| `find_references(symbolId)`           | Callers / importers from the graph              |
 
 The agent must finish by returning the spans it relied on. Tool calls are logged for the eval page and for debugging.
 
 ### 6.4 Comparing them
+
 The point of three retrievers is the evaluation in §8. Do not declare a winner in docs or UI until eval results exist.
 
 ---
@@ -277,10 +282,12 @@ Evaluation is a first-class feature, not an afterthought. **Never invent or esti
 ### 8.2 Metrics
 
 Per retriever:
+
 - **File Recall@5**, **Recall@10**, **MRR**, **nDCG@10**
 - Latency (p50/p95) and approximate token cost per query
 
 Per answer (on a subset):
+
 - Citation validity rate (from §7.3)
 - Groundedness judged by an LLM **and spot-checked by a human**; label LLM-judged numbers as such.
 
@@ -385,6 +392,7 @@ EvalRun         id, kind (retrieval|ml|answer), config (json), metrics (json), d
 ```
 
 Notes:
+
 - `vector` and `tsvector` columns use `Unsupported(...)`, so **writes and reads of those columns use parameterized raw SQL** through Prisma. Everything else uses the Prisma client.
 - The HNSW and GIN indexes are created in hand-written SQL migrations; document them in the migration file.
 - All code data hangs off `Snapshot`, so answers are always tied to one commit and never mix versions.
@@ -452,6 +460,7 @@ Pages:
 ```
 
 UX requirements:
+
 - A citation click opens the code viewer at the exact lines, highlighted, with the commit SHA visible.
 - Indexing progress updates live.
 - A "waking up the server…" state handles free-tier cold starts gracefully.
@@ -471,13 +480,13 @@ UX requirements:
 
 ## 16. Deployment (free, no credit card)
 
-| Component | Preferred | Notes |
-|---|---|---|
-| Frontend | Vercel | |
-| API (+ in-process worker) | Render free web service | Sleeps when idle; cold starts; limited RAM |
-| Postgres + pgvector | Neon free | Small storage limit — hence dimension and repo-size limits |
-| Redis | Upstash free | Command limits — see §12 |
-| LLM / embeddings | A provider with a free tier; Ollama locally | Behind `LLMService` / `EmbeddingService` |
+| Component                 | Preferred                                   | Notes                                                      |
+| ------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| Frontend                  | Vercel                                      |                                                            |
+| API (+ in-process worker) | Render free web service                     | Sleeps when idle; cold starts; limited RAM                 |
+| Postgres + pgvector       | Neon free                                   | Small storage limit — hence dimension and repo-size limits |
+| Redis                     | Upstash free                                | Command limits — see §12                                   |
+| LLM / embeddings          | A provider with a free tier; Ollama locally | Behind `LLMService` / `EmbeddingService`                   |
 
 Before deploying, **verify current free-tier limits and card requirements** for every provider and record them in `docs/deployment.md` with the date checked. Never silently introduce a paid dependency.
 
@@ -560,19 +569,19 @@ npm workspaces for the monorepo. Keep business logic out of route handlers.
 
 Each milestone ends with working, tested, committed code. Tests are written alongside features, not saved for the end.
 
-| # | Milestone | Definition of done |
-|---|---|---|
-| 1 | **Foundation** | Monorepo, Docker Compose (Postgres+pgvector, Redis), Fastify + Next.js running, Prisma migrations, env validation, CI, logging |
-| 2 | **Auth** | Register/login/logout, cookie JWT through Next.js rewrites, ownership middleware, tests |
-| 3 | **Ingestion + parsing** | URL → SHA → tarball → filter → tree-sitter symbols/imports/calls/routes stored; BullMQ job with live progress; failure states; fixture tests |
-| 4 | **Chunks, embeddings, chat — vertical slice** | Symbol chunks, embeddings (ADR for model/dimension), hybrid retriever, streamed chat with validated citations, code viewer with line highlighting. **Deploy to free tier with demo repos and rate limits.** |
-| 5 | **Evaluation harness** | Eval dataset (~100 Qs, 3–4 pinned repos), runner, vector vs hybrid metrics, `/eval` page |
-| 6 | **Agentic retriever** | Tool-use retriever with bounded loop; included in eval; results published |
-| 7 | **Architecture + tracing** | Module graph, component grouping, integrations, interactive map, request tracing |
-| 8 | **Issue localization (ML)** | Data collection, features, baselines, LR + GBDT, time-split eval, exported model served in Node, parity tests, issue locator UI |
-| 9 | **Onboarding guide** | Generated per snapshot, cached, deterministic vs generated sections distinguished |
-| 10 | **Polish** | README with architecture diagram, demo GIF/video, eval results, `docs/deployment.md`, security pass |
-| — | *Stretch* | Python support; Semgrep-based security findings explained with repo context; incremental re-indexing between commits; GitHub OAuth |
+| #   | Milestone                                     | Definition of done                                                                                                                                                                                          |
+| --- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Foundation**                                | Monorepo, Docker Compose (Postgres+pgvector, Redis), Fastify + Next.js running, Prisma migrations, env validation, CI, logging                                                                              |
+| 2   | **Auth**                                      | Register/login/logout, cookie JWT through Next.js rewrites, ownership middleware, tests                                                                                                                     |
+| 3   | **Ingestion + parsing**                       | URL → SHA → tarball → filter → tree-sitter symbols/imports/calls/routes stored; BullMQ job with live progress; failure states; fixture tests                                                                |
+| 4   | **Chunks, embeddings, chat — vertical slice** | Symbol chunks, embeddings (ADR for model/dimension), hybrid retriever, streamed chat with validated citations, code viewer with line highlighting. **Deploy to free tier with demo repos and rate limits.** |
+| 5   | **Evaluation harness**                        | Eval dataset (~100 Qs, 3–4 pinned repos), runner, vector vs hybrid metrics, `/eval` page                                                                                                                    |
+| 6   | **Agentic retriever**                         | Tool-use retriever with bounded loop; included in eval; results published                                                                                                                                   |
+| 7   | **Architecture + tracing**                    | Module graph, component grouping, integrations, interactive map, request tracing                                                                                                                            |
+| 8   | **Issue localization (ML)**                   | Data collection, features, baselines, LR + GBDT, time-split eval, exported model served in Node, parity tests, issue locator UI                                                                             |
+| 9   | **Onboarding guide**                          | Generated per snapshot, cached, deterministic vs generated sections distinguished                                                                                                                           |
+| 10  | **Polish**                                    | README with architecture diagram, demo GIF/video, eval results, `docs/deployment.md`, security pass                                                                                                         |
+| —   | _Stretch_                                     | Python support; Semgrep-based security findings explained with repo context; incremental re-indexing between commits; GitHub OAuth                                                                          |
 
 ---
 
