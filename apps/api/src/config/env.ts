@@ -13,6 +13,19 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
   // Set to true only when the API sits behind a proxy that sets X-Forwarded-For (Render, Next.js rewrites).
   TRUST_PROXY: z.stringbool().default(false),
+
+  // Server-side only; raises GitHub's rate limit from 60 to 5,000 requests/hour. Empty = none.
+  GITHUB_TOKEN: z
+    .string()
+    .optional()
+    .transform((value) => value || undefined),
+  // Free hosting has no separate worker service, so the API can run the indexing worker itself.
+  RUN_WORKER_IN_PROCESS: z.stringbool().default(false),
+  // Indexing limits (SPEC §5.1); the total bounds memory, since files are held in memory.
+  MAX_ARCHIVE_MB: z.coerce.number().positive().default(50),
+  MAX_SOURCE_FILES: z.coerce.number().int().positive().default(2_000),
+  MAX_FILE_KB: z.coerce.number().positive().default(200),
+  MAX_TOTAL_SOURCE_MB: z.coerce.number().positive().default(30),
 });
 
 export type Env = z.infer<typeof envSchema>;

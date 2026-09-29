@@ -1,0 +1,137 @@
+import { randomUUID } from 'node:crypto';
+import type { PrismaClient } from '../lib/prisma';
+import type { CodeGraph } from './graph';
+import type { ExtractedFile } from './tarball';
+
+const BATCH = 1_000;
+
+export interface SavedCounts {
+  files: number;
+  symbols: number;
+  imports: number;
+  calls: number;
+  routes: number;
+}
+
+/**
+ * Writes a snapshot's files and code graph. Ids are generated here so rows can
+ * reference each other before insertion, and everything is inserted in batches.
+ * Existing rows for the snapshot are removed first, so a retried job starts clean.
+ */
+export async function saveCodeGraph(
+  prisma: PrismaClient,
+  snapshotId: string,
+  files: ExtractedFile[],
+  graph: CodeGraph,
+): Promise<SavedCounts> {
+  // Deleting files cascades to symbols, edges and routes.
+  await prisma.file.deleteMany({ where: { snapshotId } });
+
+  const fileIds = new Map(files.map((f) => [f.path, randomUUID()]));
+  const symbolIds = new Map<string, string>(); // `${path}#${index}` → id
+  const symbolId = (ref: { path: string; index: number } | null) =>
+    ref ? (symbolIds.get(`${ref.path}#${ref.index}`) ?? null) : null;
+
+  await insertBatches(
+    files.map((f) => ({
+      id: fileIds.get(f.path)!,
+      snapshotId,
+      path: f.path,
+      kind: f.kind,
+      language: f.language,
+      sizeBytes: f.sizeBytes,
+      lineCount: f.lineCount,
+      contentHash: f.contentHash,
+      content: f.content,
+      hasErrors: graph.files.get(f.path)?.hasErrors ?? false,
+    })),
+    (data) => prisma.file.createMany({ data }),
+    // File rows carry content, so keep these batches small.
+    100,
+  );
+
+  const symbols = [...graph.files].flatMap(([path, parsed]) =>
+    parsed.symbols.map((s) => {
+      const id = randomUUID();
+      symbolIds.set(`${path}#${s.index}`, id);
+      return {
+        id,
+        snapshotId,
+        fileId: fileIds.get(path)!,
+        kind: s.kind,
+        name: s.name,
+        qualifiedName: s.qualifiedName,
+        signature: s.signature,
+        startLine: s.startLine,
+        endLine: s.endLine,
+        exported: s.exported,
+        isDefault: s.isDefault,
+        docComment: s.docComment,
+      };
+    }),
+  );
+  await insertBatches(symbols, (data) => prisma.symbol.createMany({ data }));
+
+  const imports = graph.imports.map((i) => ({
+    id: randomUUID(),
+    snapshotId,
+    fromFileId: fileIds.get(i.fromPath)!,
+    toFileId: i.toPath ? (fileIds.get(i.toPath) ?? null) : null,
+    specifier: i.specifier,
+    importedNames: i.importedNames,
+    kind: i.kind,
+    line: i.line,
+    external: i.external,
+    packageName: i.packageName,
+  }));
+  await insertBatches(imports, (data) => prisma.importEdge.createMany({ data }));
+
+  const calls = graph.calls.map((c) => {
+    const toSymbolId = symbolId(c.target);
+    return {
+      id: randomUUID(),
+      snapshotId,
+      fileId: fileIds.get(c.path)!,
+      fromSymbolId:
+        c.fromSymbolIndex === null ? null : symbolId({ path: c.path, index: c.fromSymbolIndex }),
+      toSymbolId,
+      calleeName: c.calleeName,
+      calleeText: c.calleeText,
+      line: c.line,
+      resolved: toSymbolId !== null,
+    };
+  });
+  await insertBatches(calls, (data) => prisma.callEdge.createMany({ data }));
+
+  const routes = graph.routes.map((r) => ({
+    id: randomUUID(),
+    snapshotId,
+    fileId: fileIds.get(r.path)!,
+    method: r.method,
+    path: r.urlPath,
+    framework: r.framework,
+    handlerName: r.handlerName,
+    handlerSymbolId: symbolId(r.handler),
+    startLine: r.startLine,
+    endLine: r.endLine,
+  }));
+  await insertBatches(routes, (data) => prisma.route.createMany({ data }));
+
+  return {
+    files: files.length,
+    symbols: symbols.length,
+    imports: imports.length,
+    calls: calls.length,
+    routes: routes.length,
+  };
+}
+
+async function insertBatches<T>(
+  rows: T[],
+  insert: (batch: T[]) => Promise<unknown>,
+  size = BATCH,
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += size) {
+    await insert(rows.slice(i, i + size));
+  }
+}

@@ -51,6 +51,21 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ['node', 'dist/worker.js']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/codebase_copilot
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: local-docker-only-secret-not-for-production-use
+    depends_on:
+      api:
+        condition: service_started
+
   web:
     profiles: [app]
     build:

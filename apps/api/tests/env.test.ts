@@ -51,3 +51,20 @@ describe('parseEnv', () => {
     ).toMatch(/^rediss:/);
   });
 });
+
+describe('indexing settings', () => {
+  it('defaults the limits and keeps the worker out of the API process', () => {
+    expect(parseEnv(valid)).toMatchObject({
+      RUN_WORKER_IN_PROCESS: false,
+      MAX_ARCHIVE_MB: 50,
+      MAX_SOURCE_FILES: 2000,
+      MAX_FILE_KB: 200,
+      MAX_TOTAL_SOURCE_MB: 30,
+    });
+  });
+
+  it('treats an empty GITHUB_TOKEN as no token', () => {
+    expect(parseEnv({ ...valid, GITHUB_TOKEN: '' }).GITHUB_TOKEN).toBeUndefined();
+    expect(parseEnv({ ...valid, GITHUB_TOKEN: 'ghp_x' }).GITHUB_TOKEN).toBe('ghp_x');
+  });
+});

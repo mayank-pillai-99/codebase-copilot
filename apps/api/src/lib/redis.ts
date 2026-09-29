@@ -13,4 +13,9 @@ export function createRedis(url: string): Redis {
   });
 }
 
+/** BullMQ needs its own connections that retry indefinitely instead of failing fast. */
+export function createQueueRedis(url: string): Redis {
+  return new Redis(url, { maxRetriesPerRequest: null });
+}
+
 export type { Redis };
