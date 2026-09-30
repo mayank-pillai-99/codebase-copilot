@@ -3,29 +3,27 @@
 import {
   addRepositoryResponseSchema,
   isSettled,
-  routeListResponseSchema,
   snapshotResponseSchema,
-  type RouteSummary,
+  type Guide,
   type SnapshotDto,
   type SnapshotStats,
 } from '@codebase-copilot/shared';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { codeHref, describeSkipped, isSupportingPath } from '@/lib/format';
+import { describeSkipped } from '@/lib/format';
 import { CountUp } from './count-up';
-import { MethodBadge } from './method-badge';
+import { GuideView } from './guide-view';
 import { StatusBadge } from './status-badge';
 
 const POLL_MS = 1_500;
 
 export function SnapshotView({
   initial,
-  initialRoutes,
+  initialGuide,
 }: {
   initial: SnapshotDto;
   /** Server-rendered when the snapshot was already READY. */
-  initialRoutes: RouteSummary[] | null;
+  initialGuide: Guide | null;
 }) {
   const [snapshot, setSnapshot] = useState(initial);
 
@@ -62,8 +60,8 @@ export function SnapshotView({
         <FailurePanel snapshot={snapshot} />
       ) : snapshot.status === 'READY' && snapshot.stats ? (
         <>
+          <GuideView snapshotId={snapshot.id} initial={initialGuide} />
           <StatsGrid stats={snapshot.stats} />
-          <Routes snapshot={snapshot} initialRoutes={initialRoutes} />
         </>
       ) : (
         <ProgressPanel snapshot={snapshot} />
@@ -206,6 +204,7 @@ function StatsGrid({ stats }: { stats: SnapshotStats }) {
 
   return (
     <section className="flex flex-col gap-3">
+      <h2 className="font-semibold tracking-tight">What was indexed</h2>
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map(([label, value, suffix, detail], index) => (
           <div
@@ -230,149 +229,6 @@ function StatsGrid({ stats }: { stats: SnapshotStats }) {
         variables and library calls stay unlinked. {skipped}
       </p>
     </section>
-  );
-}
-
-function Routes({
-  snapshot,
-  initialRoutes,
-}: {
-  snapshot: SnapshotDto;
-  initialRoutes: RouteSummary[] | null;
-}) {
-  const [routes, setRoutes] = useState<RouteSummary[] | null>(initialRoutes);
-  const [failed, setFailed] = useState(false);
-
-  // Only needed when indexing finished while the page was open.
-  useEffect(() => {
-    if (initialRoutes) return;
-    let cancelled = false;
-    fetch(`/api/snapshots/${snapshot.id}/routes`)
-      .then((res) => res.json())
-      .then((body: unknown) => {
-        const parsed = routeListResponseSchema.safeParse(body);
-        if (cancelled) return;
-        if (parsed.success) setRoutes(parsed.data.routes);
-        else setFailed(true);
-      })
-      .catch(() => !cancelled && setFailed(true));
-    return () => {
-      cancelled = true;
-    };
-  }, [snapshot.id, initialRoutes]);
-
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold tracking-tight">HTTP routes</h2>
-      {failed ? (
-        <p className="text-sm text-red-700 dark:text-red-400">Could not load routes.</p>
-      ) : routes === null ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading routes…</p>
-      ) : routes.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          No Express-style or Next.js routes were detected in this repository.
-        </p>
-      ) : (
-        <RouteGroups routes={routes} snapshot={snapshot} />
-      )}
-    </section>
-  );
-}
-
-function RouteGroups({ routes, snapshot }: { routes: RouteSummary[]; snapshot: SnapshotDto }) {
-  const app = routes.filter((r) => !isSupportingPath(r.file.path));
-  const supporting = routes.filter((r) => isSupportingPath(r.file.path));
-  return (
-    <div className="flex flex-col gap-3">
-      {app.length > 0 ? (
-        <RouteTable routes={app} snapshot={snapshot} />
-      ) : (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          All detected routes are in tests or examples.
-        </p>
-      )}
-      {supporting.length > 0 && (
-        <details className="group" open={app.length === 0}>
-          <summary className="cursor-pointer text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-            {supporting.length.toLocaleString('en-US')}{' '}
-            {supporting.length === 1 ? 'route' : 'routes'} in tests and examples
-          </summary>
-          <div className="mt-3">
-            <RouteTable routes={supporting} snapshot={snapshot} />
-          </div>
-        </details>
-      )}
-    </div>
-  );
-}
-
-function RouteTable({ routes, snapshot }: { routes: RouteSummary[]; snapshot: SnapshotDto }) {
-  return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full min-w-[40rem] text-left text-sm">
-        <thead className="bg-zinc-50 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-          <tr>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Method
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Path
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Handler
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Registered in
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
-          {routes.map((route) => (
-            <tr
-              key={route.id}
-              className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
-            >
-              <td className="px-3 py-2">
-                <MethodBadge method={route.method} />
-              </td>
-              <td className="px-3 py-2 font-mono text-xs">{route.path}</td>
-              <td className="px-3 py-2 font-mono text-xs">
-                {route.handler ? (
-                  <Link
-                    className="underline-offset-4 hover:underline"
-                    href={codeHref(
-                      snapshot.id,
-                      route.handler.path,
-                      route.handler.startLine,
-                      route.handler.endLine,
-                    )}
-                  >
-                    {route.handler.qualifiedName}
-                  </Link>
-                ) : (
-                  <span className="text-zinc-500 dark:text-zinc-400">
-                    {route.handlerName ?? 'inline function'}
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2 font-mono text-xs">
-                <Link
-                  className="text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400"
-                  href={codeHref(
-                    snapshot.id,
-                    route.file.path,
-                    route.file.startLine,
-                    route.file.endLine,
-                  )}
-                >
-                  {route.file.path}:{route.file.startLine}
-                </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 

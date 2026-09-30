@@ -8,7 +8,7 @@ export function RepoTabs({ snapshotId }: { snapshotId: string }) {
   const pathname = usePathname();
   const base = `/repos/${snapshotId}`;
   const tabs = [
-    { href: base, label: 'Overview' },
+    { href: base, label: 'Guide' },
     { href: `${base}/architecture`, label: 'Architecture' },
     { href: `${base}/routes`, label: 'Routes' },
     { href: `${base}/code`, label: 'Code' },
