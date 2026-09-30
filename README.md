@@ -10,6 +10,12 @@
 
 ## What it does
 
+### An onboarding guide for every repository
+
+Open a repository and start with a guide: a short summary (the one AI-written part, labelled as such), then facts from the code. You get the tech stack, the files to read first, key request flows, the largest folders, the data model, external services and configuration, each linking to the file that shows it.
+
+![The onboarding guide for the RealWorld Express API](docs/images/guide.png)
+
 ### Answers with citations you can check
 
 Ask "how does authentication work?" and get a streamed answer built only from retrieved code. Every `[n]` marker is validated on the server against the sources the model was given, and opens the cited lines at the indexed commit. Invented citations are removed and the answer is flagged.
@@ -37,7 +43,7 @@ flowchart LR
   C --> D[(Postgres<br/>code graph)]
   C --> E[Symbol chunks<br/>+ gemini-embedding-2]
   E --> F[(pgvector + tsvector)]
-  D --> G[Architecture map<br/>request traces]
+  D --> G[Onboarding guide<br/>architecture map<br/>request traces]
   F --> H[Hybrid retrieval<br/>RRF + call-graph hop]
   H --> I[Streamed answer<br/>server-validated citations]
 ```
@@ -114,7 +120,7 @@ apps/web          Next.js frontend (proxies /api/* to the API)
 apps/api          Fastify API, indexing worker, Prisma schema and migrations
   src/indexing    tarball → filter → tree-sitter → module resolution → call graph → chunks
   src/retrieval   vector, full-text and hybrid retrievers behind one interface
-  src/analysis    components, integrations and the architecture map
+  src/analysis    components, integrations, tech stack, architecture map and guide
   src/chat        prompt, citation validation, streaming service
 packages/shared   zod schemas and types shared by web and API
 docs/             specification, ADRs, deployment guide
@@ -122,7 +128,7 @@ docs/             specification, ADRs, deployment guide
 
 ## Status
 
-Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the architecture map, request tracing and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
+Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, request tracing and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## Documentation
 

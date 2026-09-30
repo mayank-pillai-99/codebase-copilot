@@ -324,16 +324,16 @@ From a route's handler (a named symbol, or the lines of an inline handler), BFS 
 
 Generated once per snapshot and cached (keyed by `snapshotId`):
 
-- **Purpose** — from README + entry points
-- **Tech stack** — deterministic, from `package.json`, configs, Dockerfiles
-- **Architecture** — the map above, summarized
-- **Key flows** — 3–5 most important routes/entry points traced
+- **Purpose** — a 2–3 sentence summary written by the LLM from the README and the deterministic facts below; the only AI-written section, labelled as such
+- **Tech stack** — deterministic, from `package.json` dependencies and tooling files (Dockerfiles, tsconfig, CI workflows)
+- **Architecture** — the largest components from the map above, with what they import
+- **Key flows** — up to 5 routes, one per resource, linking to their traces
 - **Data model** — detected schema/models
-- **External integrations**
-- **Where to start reading** — ranked by graph centrality + entry points
-- **Glossary** — domain terms from symbol names and docs
+- **External integrations** and **configuration** (environment variables)
+- **Where to start reading** — entry points (declared in `package.json`, conventional names, Next.js roots), files most imported by application code, and route files
+- _(Deferred)_ **Glossary** — left out as the least reliable part (ADR 0007)
 
-Each section distinguishes **deterministic facts** (stack, routes, files) from **LLM-written explanation**.
+Each section distinguishes **deterministic facts** (stack, routes, files) from **LLM-written explanation**. The deterministic guide and the summary are cached separately in `snapshot_analyses`; a failed summary isn't cached, so it is retried on the next visit.
 
 ---
 
@@ -448,9 +448,10 @@ Built so far (✓) and planned. "public" means readable without a session for de
 ✓ POST   /api/snapshots/:id/search             { query, retriever?, k? }          (public for demos)
 ✓ GET    /api/snapshots/:id/architecture       components, imports, integrations  (public for demos)
 ✓ GET    /api/snapshots/:id/routes/:routeId/trace   call tree from the handler   (public for demos)
+✓ GET    /api/snapshots/:id/guide              deterministic onboarding guide     (public for demos)
+✓ GET    /api/snapshots/:id/guide/summary      AI summary, cached per snapshot    (public for demos)
 ✓ GET    /api/eval/latest                      newest retrieval evaluation run   (public)
 
-  GET    /api/snapshots/:id/guide              onboarding guide                   (Milestone 9)
   POST   /api/snapshots/:id/locate-issue       { issueUrl | title+body }          (Milestone 8)
 
 ✓ GET    /api/health                           dependency status (503 if degraded)
@@ -471,7 +472,7 @@ Pages:
 /                         landing: what it does + demo repos (no login needed)
 /login, /register
 /repos                    my repos + demo repos
-/repos/[snapshotId]       overview (the onboarding guide becomes the default tab in Milestone 9)
+/repos/[snapshotId]       onboarding guide (default tab) + index statistics
    /architecture          interactive architecture map
    /routes?route=<id>     route list + request tracing
    /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors)
