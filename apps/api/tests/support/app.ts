@@ -9,6 +9,7 @@ import type { ChatService } from '../../src/chat/chat.service';
 import type { CodeService } from '../../src/services/code.service';
 import type { ArchitectureService } from '../../src/services/architecture.service';
 import type { EvalService } from '../../src/services/eval.service';
+import type { GuideService } from '../../src/services/guide.service';
 import type { SearchService } from '../../src/services/search.service';
 import type { TraceService } from '../../src/services/trace.service';
 import { createInMemoryUsers, fakeHasher } from './fakes';
@@ -83,6 +84,12 @@ export const unusedTrace: TraceService = {
     throw new AppError(404, 'Not found');
   },
 };
+export const unusedGuide: GuideService = {
+  getGuide: async () => {
+    throw new AppError(404, 'Not found');
+  },
+  getSummary: async () => ({ summary: null, reason: 'not used in this test' }),
+};
 
 /** App wired with in-memory fakes; override any dependency per test. */
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
@@ -97,6 +104,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     evals: noEvals,
     architecture: unusedArchitecture,
     trace: unusedTrace,
+    guide: unusedGuide,
     ...overrides,
   });
 }

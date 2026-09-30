@@ -20,6 +20,7 @@ import { createAuthService } from './services/auth.service';
 import { createCodeService } from './services/code.service';
 import { createDependencyChecks } from './services/dependency-checks';
 import { createEvalService, importEvalResults } from './services/eval.service';
+import { createGuideService } from './services/guide.service';
 import { createRepositoryService } from './services/repository.service';
 import { createSearchService } from './services/search.service';
 import { createTraceService } from './services/trace.service';
@@ -64,6 +65,7 @@ async function main(): Promise<void> {
     queue,
     demo,
   });
+  const architecture = createArchitectureService(prisma, demo);
   const app = await buildApp({
     env,
     healthChecks: createDependencyChecks(prisma, redis),
@@ -77,8 +79,9 @@ async function main(): Promise<void> {
       demo,
     }),
     evals: createEvalService(prisma),
-    architecture: createArchitectureService(prisma, demo),
+    architecture,
     trace: createTraceService(prisma, demo),
+    guide: createGuideService({ prisma, architecture, model: chatModel, demo, logger: appLogger }),
     chatQuota: {
       user: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),
       anonymous: createDailyQuota(redis, 'demo-chat', env.DEMO_CHAT_DAILY_LIMIT),
