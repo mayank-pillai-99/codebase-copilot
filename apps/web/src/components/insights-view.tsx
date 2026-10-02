@@ -8,7 +8,8 @@ const delay = (ms: number): CSSProperties => ({ animationDelay: `${ms}ms` });
 /** Codebase health from the parsed graph: hotspots, test reach and import cycles. */
 export function InsightsView({ snapshotId, insights }: { snapshotId: string; insights: Insights }) {
   const { testReach } = insights;
-  const reach = testReach.sourceFiles ? testReach.testedFiles / testReach.sourceFiles : 0;
+  // The file most others depend on that no test touches: where a change is least checked.
+  const riskiest = testReach.untestedHubs[0];
   const topCalled = insights.mostCalled[0];
   const longest = insights.longestFunctions[0];
   const file = (path: string, start?: number, end?: number, text?: ReactNode) => (
@@ -23,22 +24,34 @@ export function InsightsView({ snapshotId, insights }: { snapshotId: string; ins
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        A health check computed from the parsed code (no AI): where the code is concentrated, what
-        the tests reach, and where files import each other in a loop. Rankings cover application
-        code, not tests or examples.
+        A health check computed from the parsed code (no AI): where the code is concentrated, where
+        a change is risky because no test checks it, and where files import each other in a loop.
+        Rankings cover application code, not tests or examples.
       </p>
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Files reached by tests" delay={0}>
-          <span className="text-2xl font-semibold tabular-nums">
-            {testReach.hasTests ? `${Math.round(reach * 100)}%` : '—'}
-          </span>
-          <Meter value={testReach.hasTests ? reach : 0} tone={reach >= 0.5 ? 'good' : 'warn'} />
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            {testReach.hasTests
-              ? `${testReach.testedFiles} of ${testReach.sourceFiles} files imported by a test`
-              : 'No test files found'}
-          </span>
+        <Stat label="Riskiest file to change" delay={0}>
+          {riskiest ? (
+            <>
+              <Link
+                href={codeHref(snapshotId, riskiest.path)}
+                title={riskiest.path}
+                className="truncate font-mono text-sm font-semibold hover:text-brand-700 hover:underline dark:hover:text-brand-400"
+              >
+                {riskiest.path.split('/').at(-1)}
+              </Link>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                used by {riskiest.importedBy} {riskiest.importedBy === 1 ? 'file' : 'files'} ·{' '}
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  {testReach.hasTests ? 'no tests' : 'this repo has no tests'}
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+              Every file others depend on has tests
+            </span>
+          )}
         </Stat>
         <Stat label="Import cycles" delay={60}>
           <span className="text-2xl font-semibold tabular-nums">{insights.cycles.length}</span>
@@ -126,45 +139,56 @@ export function InsightsView({ snapshotId, insights }: { snapshotId: string; ins
       <div className="grid gap-6 lg:grid-cols-2">
         <Section
           title="Important files without tests"
-          hint="Not imported by any test, ranked by how many files depend on them"
+          hint="Many files depend on them and no test imports them, so a change here goes unchecked"
           delay={420}
         >
-          {!testReach.hasTests ? (
-            <Empty>This repository has no test files.</Empty>
-          ) : (
-            <Bars
-              tone="warn"
-              empty="Every file that others depend on is imported by a test."
-              items={testReach.untestedHubs.map((h) => ({
-                key: h.path,
-                value: h.importedBy,
-                label: file(h.path),
-                detail: `used by ${h.importedBy} ${h.importedBy === 1 ? 'file' : 'files'}`,
-              }))}
-            />
-          )}
+          <Bars
+            tone="warn"
+            empty="Every file that others depend on is imported by a test."
+            items={testReach.untestedHubs.map((h) => ({
+              key: h.path,
+              value: h.importedBy,
+              label: file(h.path),
+              detail: `used by ${h.importedBy} ${h.importedBy === 1 ? 'file' : 'files'}`,
+            }))}
+          />
         </Section>
         <Section
-          title="Most-tested files"
-          hint="Imported directly by the most test files"
+          title="Learn from the tests"
+          hint="Tests show how code is meant to be called and what it returns; open both side by side"
           delay={480}
         >
           {!testReach.hasTests ? (
             <Empty>This repository has no test files.</Empty>
+          ) : testReach.mostTested.length === 0 ? (
+            <Empty>No test imports application files directly.</Empty>
           ) : (
-            <Bars
-              tone="good"
-              empty="No test imports application files directly."
-              items={testReach.mostTested.map((t) => ({
-                key: t.path,
-                value: t.tests,
-                label: file(t.path),
-                detail: `${t.tests} ${t.tests === 1 ? 'test file' : 'test files'}`,
-              }))}
-            />
+            <ul className="flex flex-col gap-3">
+              {testReach.mostTested.map((t) => (
+                <li key={t.path} className="flex min-w-0 flex-col gap-1">
+                  {file(t.path)}
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-3 text-xs text-zinc-500 dark:text-zinc-400">
+                    <span aria-hidden className="text-emerald-600 dark:text-emerald-400">
+                      ↳
+                    </span>
+                    tested in
+                    {t.testFiles.map((test) => (
+                      <span key={test} className="min-w-0">
+                        {file(test, undefined, undefined, test.split('/').at(-1))}
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </Section>
       </div>
+      <p className="-mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+        {testReach.hasTests
+          ? `${testReach.testedFiles} of ${testReach.sourceFiles} application files are imported directly by a test file. Tests aren't run here, so this is a rough guide rather than coverage.`
+          : 'This repository has no test files, so nothing above is checked by tests.'}
+      </p>
 
       <Section
         title="Import cycles"
@@ -220,23 +244,6 @@ function Stat({
     >
       <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</dt>
       <dd className="flex min-w-0 flex-col gap-1.5">{children}</dd>
-    </div>
-  );
-}
-
-function Meter({ value, tone }: { value: number; tone: 'good' | 'warn' }) {
-  return (
-    <div
-      className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
-      role="meter"
-      aria-valuenow={Math.round(value * 100)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-    >
-      <div
-        className={`h-full origin-left animate-grow rounded-full ${tone === 'good' ? 'bg-emerald-500' : 'bg-amber-500'}`}
-        style={{ width: `${Math.max(value * 100, value > 0 ? 3 : 0)}%` }}
-      />
     </div>
   );
 }

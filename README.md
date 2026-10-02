@@ -36,7 +36,7 @@ Pick a route and follow its handler into the functions it calls, breadth-first t
 
 ### Insights: a health check of the codebase
 
-A tab of facts computed from the code graph, with no AI: the most-called functions, the longest functions and largest files, how many files the tests reach and which important files they miss, and import cycles between files (found with Tarjan's strongly connected components).
+A tab of facts computed from the code graph, with no AI: the most-called functions, the longest functions and largest files; the riskiest files to change (many files depend on them, no test imports them) and which test file to read to learn each tested file; and import cycles between files (found with Tarjan's strongly connected components).
 
 ![Insights for the RealWorld Express API](docs/images/insights.png)
 
