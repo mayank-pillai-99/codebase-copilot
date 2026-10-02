@@ -35,6 +35,7 @@
   --animate-caret: caret 1s steps(2, start) infinite;
   --animate-travel: travel 2.8s ease-in-out infinite;
   --animate-ping-slow: ping-slow 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-grow: grow 0.7s var(--ease-out-soft) backwards;
 
   @keyframes fade-up {
     from {
@@ -99,6 +100,12 @@
     100% {
       offset-distance: 100%;
       opacity: 0;
+    }
+  }
+  /* Bars in charts grow from the left (set transform-origin on the element). */
+  @keyframes grow {
+    from {
+      transform: scaleX(0);
     }
   }
   @keyframes ping-slow {
