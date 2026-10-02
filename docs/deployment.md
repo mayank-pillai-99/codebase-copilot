@@ -84,8 +84,8 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
 
 | Provider         | Checked on | Notes                                                                                                                       |
 | ---------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Vercel           | _not yet_  |                                                                                                                             |
-| Render           | _not yet_  |                                                                                                                             |
-| Neon             | _not yet_  |                                                                                                                             |
-| Upstash          | _not yet_  |                                                                                                                             |
+| Vercel           | 2026-09-29 | Signed up and deployed on the free plan; no credit card was requested                                                       |
+| Render           | 2026-09-29 | Signed up and deployed on the free plan; no credit card was requested                                                       |
+| Neon             | 2026-09-29 | Signed up and deployed on the free plan; no credit card was requested                                                       |
+| Upstash          | 2026-09-29 | Signed up and deployed on the free plan; no credit card was requested                                                       |
 | Google AI Studio | 2026-09-29 | Free tier without billing or a card (billing docs); free-tier content may be used to improve Google products (pricing page) |
