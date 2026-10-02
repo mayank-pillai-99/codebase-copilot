@@ -60,6 +60,7 @@ describe('computeInsights', () => {
       file('src/users.ts', 120),
       file('src/orders.ts', 80),
       file('src/users.test.ts', 30),
+      file('src/tests/db-mock.ts', 5),
       { path: 'README.md', kind: 'DOC', lineCount: 500 },
     ],
     symbols: [
@@ -74,6 +75,8 @@ describe('computeInsights', () => {
       { from: 'src/orders.ts', to: 'src/users.ts' },
       { from: 'src/users.ts', to: 'src/orders.ts' },
       { from: 'src/users.test.ts', to: 'src/users.ts' },
+      // A mock in the tests folder imports db.ts without testing it.
+      { from: 'src/tests/db-mock.ts', to: 'src/db.ts' },
     ],
     calls: [
       { fromPath: 'src/users.ts', toSymbolId: 'q' },
@@ -111,7 +114,7 @@ describe('computeInsights', () => {
       hasTests: true,
       sourceFiles: 3,
       testedFiles: 1,
-      mostTested: [{ path: 'src/users.ts', tests: 1 }],
+      mostTested: [{ path: 'src/users.ts', tests: 1, testFiles: ['src/users.test.ts'] }],
       untestedHubs: [
         { path: 'src/db.ts', importedBy: 2 },
         { path: 'src/orders.ts', importedBy: 1 },

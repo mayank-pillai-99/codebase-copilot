@@ -192,7 +192,13 @@ inlineRouter.get('/refunds', async (req, res) => {
     expect(insights.testReach).toMatchObject({
       hasTests: true,
       testedFiles: 1,
-      mostTested: [{ path: 'src/services/payment.service.ts', tests: 1 }],
+      mostTested: [
+        {
+          path: 'src/services/payment.service.ts',
+          tests: 1,
+          testFiles: ['src/services/payment.service.test.ts'],
+        },
+      ],
     });
     expect(insights.testReach.untestedHubs.map((h) => h.path)).toContain(
       'src/controllers/payments.controller.ts',

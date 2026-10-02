@@ -22,7 +22,10 @@ export const insightsSchema = z.object({
     hasTests: z.boolean(),
     sourceFiles: z.number().int(),
     testedFiles: z.number().int(),
-    mostTested: z.array(z.object({ path: z.string(), tests: z.number().int() })),
+    /** Tested files with the test files that import them (up to five), most-tested first. */
+    mostTested: z.array(
+      z.object({ path: z.string(), tests: z.number().int(), testFiles: z.array(z.string()) }),
+    ),
     /** Untested files that other application files depend on, most depended-on first. */
     untestedHubs: z.array(z.object({ path: z.string(), importedBy: z.number().int() })),
   }),

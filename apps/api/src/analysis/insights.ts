@@ -24,6 +24,7 @@ export interface InsightsInput {
 }
 
 const TOP = 8;
+const TEST_HELPER = /mock|fixture|helper|setup|support|stub|fake/i;
 const MAX_CYCLES = 12;
 
 export function computeInsights(input: InsightsInput): Insights {
@@ -32,7 +33,9 @@ export function computeInsights(input: InsightsInput): Insights {
       .filter((f) => f.kind === 'CODE' && classifyRole(f.path) === 'source')
       .map((f) => f.path),
   );
-  const isTest = (path: string) => classifyRole(path) === 'test';
+  // Mocks, fixtures and helpers live with the tests but import code without testing it.
+  const isTest = (path: string) =>
+    classifyRole(path) === 'test' && !TEST_HELPER.test(path.split('/').at(-1) ?? '');
 
   // Most-called functions: resolved calls from application code.
   const callCounts = new Map<string, number>();
@@ -90,7 +93,11 @@ export function computeInsights(input: InsightsInput): Insights {
       sourceFiles: source.size,
       testedFiles: [...source].filter((p) => testedBy.has(p)).length,
       mostTested: [...testedBy]
-        .map(([path, tests]) => ({ path, tests: tests.size }))
+        .map(([path, tests]) => ({
+          path,
+          tests: tests.size,
+          testFiles: [...tests].sort().slice(0, 5),
+        }))
         .sort((a, b) => b.tests - a.tests || a.path.localeCompare(b.path))
         .slice(0, TOP),
       untestedHubs: untested.filter((u) => u.importedBy > 0).slice(0, TOP),

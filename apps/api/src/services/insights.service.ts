@@ -10,7 +10,7 @@ export interface InsightsService {
 }
 
 /** Bump when the analysis changes, so cached insights are rebuilt. */
-export const INSIGHTS_VERSION = 1;
+export const INSIGHTS_VERSION = 3;
 
 /** Codebase health from the stored graph, computed on first request and cached. */
 export function createInsightsService(
