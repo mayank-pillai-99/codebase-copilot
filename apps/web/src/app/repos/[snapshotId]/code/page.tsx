@@ -5,6 +5,7 @@ import {
 } from '@codebase-copilot/shared';
 import { CodeView } from '@/components/code-view';
 import { FileTree } from '@/components/file-tree';
+import { ReferencesPanel } from '@/components/references-panel';
 import { parseLineRange } from '@/lib/format';
 import { highlightFile } from '@/lib/highlight';
 import { serverApi } from '@/lib/server-api';
@@ -35,12 +36,13 @@ export default async function CodePage(props: PageProps<'/repos/[snapshotId]/cod
         fileResponseSchema,
       )
     : null;
+  const highlight = parseLineRange(searchParams.lines);
   const lines = file?.ok
     ? await highlightFile(file.data.file.path, file.data.file.language, file.data.file.content)
     : null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="grid gap-4 md:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_18rem]">
       <aside className="min-w-0">
         <FileTree files={files} snapshotId={snapshotId} currentPath={path} />
       </aside>
@@ -53,10 +55,19 @@ export default async function CodePage(props: PageProps<'/repos/[snapshotId]/cod
           file={file.data.file}
           symbols={file.data.symbols}
           lines={lines}
-          highlight={parseLineRange(searchParams.lines)}
+          highlight={highlight}
         />
       ) : (
         <Notice>{file && !file.ok ? file.error : 'Select a file to view it.'}</Notice>
+      )}
+      {file?.ok && file.data.file.kind === 'CODE' && (
+        <div className="md:col-start-2 xl:col-start-auto">
+          <ReferencesPanel
+            snapshotId={snapshotId}
+            path={file.data.file.path}
+            line={highlight?.start ?? null}
+          />
+        </div>
       )}
     </div>
   );
