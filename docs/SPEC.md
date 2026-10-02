@@ -450,6 +450,7 @@ Built so far (✓) and planned. "public" means readable without a session for de
 ✓ GET    /api/snapshots/:id/architecture       components, imports, integrations  (public for demos)
 ✓ GET    /api/snapshots/:id/routes/:routeId/trace   call tree from the handler   (public for demos)
 ✓ GET    /api/snapshots/:id/guide              deterministic onboarding guide     (public for demos)
+✓ GET    /api/snapshots/:id/insights           hotspots, test reach, import cycles (public for demos)
 ✓ GET    /api/snapshots/:id/guide/summary      AI summary, cached per snapshot    (public for demos)
 ✓ GET    /api/eval/latest                      newest retrieval evaluation run   (public)
 
@@ -475,6 +476,7 @@ Pages:
 /repos                    my repos + demo repos
 /repos/[snapshotId]       onboarding guide (default tab) + index statistics
    /architecture          interactive architecture map
+   /insights              codebase health: hotspots, test reach, import cycles (no AI)
    /routes?route=<id>     route list + request tracing
    /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors, references panel)
    ⌘K                     command palette on every repository page: fuzzy file names + full-text code search

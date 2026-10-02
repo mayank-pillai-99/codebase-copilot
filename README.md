@@ -34,6 +34,12 @@ Pick a route and follow its handler into the functions it calls, breadth-first t
 
 ![Trace of POST /articles](docs/images/request-trace.png)
 
+### Insights: a health check of the codebase
+
+A tab of facts computed from the code graph, with no AI: the most-called functions, the longest functions and largest files, how many files the tests reach and which important files they miss, and import cycles between files (found with Tarjan's strongly connected components).
+
+![Insights for the RealWorld Express API](docs/images/insights.png)
+
 ### Search and navigate like an IDE
 
 Press <kbd>⌘K</kbd> on any repository page to search file names (fuzzy, instant) and code (full-text, as you type) with previews. Searching an identifier lands on its definition first. In the code viewer, a References panel shows who calls the selected function and what it calls, including inline route handlers named by their route.
@@ -128,7 +134,7 @@ apps/web          Next.js frontend (proxies /api/* to the API)
 apps/api          Fastify API, indexing worker, Prisma schema and migrations
   src/indexing    tarball → filter → tree-sitter → module resolution → call graph → chunks
   src/retrieval   vector, full-text and hybrid retrievers behind one interface
-  src/analysis    components, integrations, tech stack, architecture map and guide
+  src/analysis    components, integrations, tech stack, architecture map, guide and insights
   src/chat        prompt, citation validation, streaming service
 packages/shared   zod schemas and types shared by web and API
 docs/             specification, ADRs, deployment guide
@@ -136,7 +142,7 @@ docs/             specification, ADRs, deployment guide
 
 ## Status
 
-Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, request tracing and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
+Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, insights, request tracing and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## Documentation
 
