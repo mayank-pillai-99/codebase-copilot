@@ -8,6 +8,7 @@ export interface CodeRouteOptions {
 }
 
 const fileQuery = z.object({ path: z.string().min(1).max(1_000) });
+const referencesQuery = fileQuery.extend({ line: z.coerce.number().int().min(1) });
 
 export const codeRoutes: FastifyPluginAsync<CodeRouteOptions> = async (app, { code }) => {
   // Readable anonymously for demo repositories.
@@ -21,5 +22,10 @@ export const codeRoutes: FastifyPluginAsync<CodeRouteOptions> = async (app, { co
   app.get<{ Params: { id: string } }>('/api/snapshots/:id/file', async (request) => {
     const { path } = fileQuery.parse(request.query);
     return code.getFile(viewerId(request), request.params.id, path);
+  });
+
+  app.get<{ Params: { id: string } }>('/api/snapshots/:id/references', async (request) => {
+    const { path, line } = referencesQuery.parse(request.query);
+    return code.getReferences(viewerId(request), request.params.id, path, line);
   });
 };

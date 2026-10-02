@@ -124,6 +124,55 @@ export const fileResponseSchema = z.object({
   symbols: z.array(fileSymbolSchema),
 });
 
+const codeLocationSchema = z.object({
+  label: z.string(),
+  path: z.string(),
+  startLine: z.number().int(),
+  endLine: z.number().int(),
+});
+
+/**
+ * GET /api/snapshots/:id/references?path=&line=: the call graph around the innermost
+ * function, method or class at a line. Calls are resolved by name (SPEC §5.3), so
+ * unresolved ones are listed without a target.
+ */
+export const referencesResponseSchema = z.object({
+  symbol: z
+    .object({
+      qualifiedName: z.string(),
+      kind: z.string(),
+      path: z.string(),
+      startLine: z.number().int(),
+      endLine: z.number().int(),
+    })
+    .nullable(),
+  /** HTTP routes this symbol handles. */
+  routes: z.array(z.object({ id: z.uuid(), method: z.string(), path: z.string() })),
+  /** Resolved calls to this symbol, with the calling code. */
+  callers: z.array(
+    z.object({
+      /** The enclosing function, or null for top-level code. */
+      from: codeLocationSchema.nullable(),
+      /** The inline route handler the call sits in, when there's no named function. */
+      route: z.object({ id: z.uuid(), method: z.string(), path: z.string() }).nullable(),
+      path: z.string(),
+      line: z.number().int(),
+    }),
+  ),
+  /** Calls made inside this symbol, in source order. */
+  callees: z.array(
+    z.object({
+      callee: z.string(),
+      line: z.number().int(),
+      resolved: z.boolean(),
+      target: codeLocationSchema.nullable(),
+    }),
+  ),
+  /** True when a list was cut at its limit. */
+  truncated: z.boolean(),
+});
+
 export type FileEntry = z.infer<typeof fileEntrySchema>;
+export type ReferencesResponse = z.infer<typeof referencesResponseSchema>;
 export type FileSymbol = z.infer<typeof fileSymbolSchema>;
 export type FileResponse = z.infer<typeof fileResponseSchema>;

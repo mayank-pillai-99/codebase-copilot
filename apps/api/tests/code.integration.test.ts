@@ -94,4 +94,60 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('code browsing (integrat
       statusCode: 404,
     });
   });
+
+  describe('references', () => {
+    const refs = (path: string, line: number) =>
+      createCodeService(prisma).getReferences(userId, snapshotId, path, line);
+    const controller = 'src/controllers/payments.controller.ts';
+    const service = 'src/services/payment.service.ts';
+
+    it('shows what a route handler calls and the route it handles', async () => {
+      const r = await refs(controller, 5);
+      expect(r.symbol).toMatchObject({ qualifiedName: 'createPayment', kind: 'function' });
+      expect(r.routes.map((x) => `${x.method} ${x.path}`)).toEqual(['POST /payments']);
+      expect(r.callees.map((c) => [c.callee, c.resolved, c.target?.path ?? null])).toEqual(
+        expect.arrayContaining([
+          ['PaymentService.create', true, service],
+          // A method on a local variable can't be resolved by name.
+          ['service.charge', false, null],
+        ]),
+      );
+    });
+
+    it('shows who calls a method', async () => {
+      const r = await refs(service, 3);
+      expect(r.symbol?.qualifiedName).toBe('PaymentService.create');
+      expect(r.callers).toEqual([
+        {
+          from: expect.objectContaining({ label: 'createPayment', path: controller }),
+          route: null,
+          path: controller,
+          line: 5,
+        },
+      ]);
+    });
+
+    it('follows this.method() calls', async () => {
+      const r = await refs(service, 7);
+      expect(r.symbol?.qualifiedName).toBe('PaymentService.charge');
+      expect(r.callees.find((c) => c.callee === 'this.validate')?.target?.label).toBe(
+        'PaymentService.validate',
+      );
+    });
+
+    it("lists constructions of a class but not its methods' calls", async () => {
+      const r = await refs(service, 1);
+      expect(r.symbol).toMatchObject({ qualifiedName: 'PaymentService', kind: 'class' });
+      expect(r.callees).toEqual([]);
+      expect(r.callers.map((c) => c.from?.label)).toContain('PaymentService.create');
+    });
+
+    it('returns no symbol outside any function, and 404 for unknown files or viewers', async () => {
+      expect((await refs(controller, 2)).symbol).toBeNull();
+      await expect(refs('nope.ts', 1)).rejects.toMatchObject({ statusCode: 404 });
+      await expect(
+        createCodeService(prisma).getReferences(null, snapshotId, controller, 5),
+      ).rejects.toMatchObject({ statusCode: 404 });
+    });
+  });
 });

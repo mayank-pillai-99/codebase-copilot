@@ -8,6 +8,7 @@ import {
   ARCHITECTURE_VERSION,
   createArchitectureService,
 } from '../src/services/architecture.service';
+import { createCodeService } from '../src/services/code.service';
 import { createTraceService } from '../src/services/trace.service';
 import { fixtureEntries, fixtureRepo } from './support/fixture-repo';
 import { makeTarball, toWebStream } from './support/tar';
@@ -157,5 +158,23 @@ inlineRouter.get('/refunds', async (req, res) => {
     await expect(service.trace(userId, snapshotId, 'nope')).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+
+  it('names callers inside inline route handlers by their route', async () => {
+    const refs = await createCodeService(prisma).getReferences(
+      userId,
+      snapshotId,
+      'src/services/payment.service.ts',
+      3,
+    );
+    expect(refs.callers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: null,
+          route: expect.objectContaining({ method: 'GET', path: '/refunds' }),
+          path: 'src/routes/inline.ts',
+        }),
+      ]),
+    );
   });
 });
