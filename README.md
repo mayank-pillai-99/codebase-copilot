@@ -6,7 +6,9 @@
 
 **[Live demo →](https://codebase-copilot-mu.vercel.app)** Explore the demo repositories without an account. It runs on free hosting, so the first visit after a quiet spell can take up to a minute to wake the server.
 
-![Codebase Copilot landing page](docs/images/landing.png)
+[![A one-minute tour: onboarding guide, architecture map, insights, request tracing, ⌘K search with references, and chat with citations](docs/images/demo.gif)](docs/demo.mp4)
+
+A one-minute tour of the RealWorld demo ([full-resolution MP4](docs/demo.mp4)).
 
 ## What it does
 
