@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toTsQuery } from '../src/retrieval/fulltext';
+import { queryIdentifiers, toTsQuery } from '../src/retrieval/fulltext';
 import { reciprocalRankFusion } from '../src/retrieval/hybrid';
 import type { RetrievedChunk } from '../src/retrieval/types';
 
@@ -22,6 +22,17 @@ describe('toTsQuery', () => {
   it('returns null when nothing searchable remains', () => {
     expect(toTsQuery('how does it work?')).toBeNull();
     expect(toTsQuery('   ')).toBeNull();
+  });
+});
+
+describe('queryIdentifiers', () => {
+  it('keeps distinct identifiers, lowercased, without stop words', () => {
+    expect(queryIdentifiers('Where is createArticle and PaymentService.charge used?')).toEqual([
+      'createarticle',
+      'paymentservice',
+      'charge',
+    ]);
+    expect(queryIdentifiers('how does it work')).toEqual([]);
   });
 });
 

@@ -90,6 +90,23 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('retrieval (integration)
     expect(results.every((r) => r.sources.includes('fulltext'))).toBe(true);
   });
 
+  it('full-text search puts the definition of a named symbol first', async () => {
+    const byName = await createFullTextRetriever(prisma).retrieve({
+      snapshotId: snapshotIds[0]!,
+      query: 'createPayment',
+      k: 5,
+    });
+    expect(byName[0]!.label).toBe('createPayment');
+
+    // Exact names beat functions that merely share words with them.
+    const other = await createFullTextRetriever(prisma).retrieve({
+      snapshotId: snapshotIds[0]!,
+      query: 'where is listPayments',
+      k: 5,
+    });
+    expect(other[0]!.label).toBe('listPayments');
+  });
+
   it('vector search ranks by embedding similarity and stays within the snapshot', async () => {
     const results = await createVectorRetriever(prisma, embedder).retrieve({
       snapshotId: snapshotIds[1]!,
