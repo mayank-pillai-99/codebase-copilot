@@ -21,6 +21,7 @@ import { createCodeService } from './services/code.service';
 import { createDependencyChecks } from './services/dependency-checks';
 import { createEvalService, importEvalResults } from './services/eval.service';
 import { createGuideService } from './services/guide.service';
+import { createInsightsService } from './services/insights.service';
 import { createRepositoryService } from './services/repository.service';
 import { createSearchService } from './services/search.service';
 import { createTraceService } from './services/trace.service';
@@ -81,6 +82,7 @@ async function main(): Promise<void> {
     evals: createEvalService(prisma),
     architecture,
     trace: createTraceService(prisma, demo),
+    insights: createInsightsService(prisma, demo),
     guide: createGuideService({ prisma, architecture, model: chatModel, demo, logger: appLogger }),
     chatQuota: {
       user: createDailyQuota(redis, 'chat', env.CHAT_DAILY_LIMIT),

@@ -10,6 +10,7 @@ import type { CodeService } from '../../src/services/code.service';
 import type { ArchitectureService } from '../../src/services/architecture.service';
 import type { EvalService } from '../../src/services/eval.service';
 import type { GuideService } from '../../src/services/guide.service';
+import type { InsightsService } from '../../src/services/insights.service';
 import type { SearchService } from '../../src/services/search.service';
 import type { TraceService } from '../../src/services/trace.service';
 import { createInMemoryUsers, fakeHasher } from './fakes';
@@ -87,6 +88,11 @@ export const unusedTrace: TraceService = {
     throw new AppError(404, 'Not found');
   },
 };
+export const unusedInsights: InsightsService = {
+  getInsights: async () => {
+    throw new AppError(404, 'Not found');
+  },
+};
 export const unusedGuide: GuideService = {
   getGuide: async () => {
     throw new AppError(404, 'Not found');
@@ -108,6 +114,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     architecture: unusedArchitecture,
     trace: unusedTrace,
     guide: unusedGuide,
+    insights: unusedInsights,
     ...overrides,
   });
 }

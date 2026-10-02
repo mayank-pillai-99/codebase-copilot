@@ -9,6 +9,7 @@ import {
   createArchitectureService,
 } from '../src/services/architecture.service';
 import { createCodeService } from '../src/services/code.service';
+import { createInsightsService } from '../src/services/insights.service';
 import { createTraceService } from '../src/services/trace.service';
 import { fixtureEntries, fixtureRepo } from './support/fixture-repo';
 import { makeTarball, toWebStream } from './support/tar';
@@ -28,6 +29,10 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('analysis (integration)'
       dependencies: { express: '^5.0.0', stripe: '^14.0.0' },
     }),
     'src/services/stripe.ts': `import Stripe from 'stripe';\nexport const stripe = new Stripe(process.env.STRIPE_KEY);\n`,
+    // An import cycle and a test file, for insights.
+    'src/a.ts': `import { b } from './b';\nexport const a = () => b();\n`,
+    'src/b.ts': `import { a } from './a';\nexport const b = () => 1;\nexport const c = () => a();\n`,
+    'src/services/payment.service.test.ts': `import { PaymentService } from './payment.service';\ntest('creates', () => PaymentService.create());\n`,
     'src/routes/inline.ts': `import { Router } from 'express';
 import { PaymentService } from '../services/payment.service';
 
@@ -91,6 +96,7 @@ inlineRouter.get('/refunds', async (req, res) => {
       'src/controllers',
       'src/routes',
       'src/services',
+      '(tests)',
     ]);
     expect(map.dependencies.map((d) => `${d.from} → ${d.to}`)).toEqual(
       expect.arrayContaining([
@@ -175,6 +181,31 @@ inlineRouter.get('/refunds', async (req, res) => {
           path: 'src/routes/inline.ts',
         }),
       ]),
+    );
+  });
+
+  it('computes insights from the stored graph and caches them', async () => {
+    const insights = await createInsightsService(prisma).getInsights(userId, snapshotId);
+
+    expect(insights.mostCalled.map((s) => s.label)).toContain('PaymentService.create');
+    expect(insights.cycles).toEqual([['src/a.ts', 'src/b.ts']]);
+    expect(insights.testReach).toMatchObject({
+      hasTests: true,
+      testedFiles: 1,
+      mostTested: [{ path: 'src/services/payment.service.ts', tests: 1 }],
+    });
+    expect(insights.testReach.untestedHubs.map((h) => h.path)).toContain(
+      'src/controllers/payments.controller.ts',
+    );
+
+    const row = await prisma.snapshotAnalysis.findUnique({
+      where: { snapshotId_kind: { snapshotId, kind: 'insights' } },
+    });
+    expect(row?.data).toEqual(insights);
+    await expect(createInsightsService(prisma).getInsights(null, snapshotId)).rejects.toMatchObject(
+      {
+        statusCode: 404,
+      },
     );
   });
 });

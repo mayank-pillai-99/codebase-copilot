@@ -23,6 +23,7 @@ import type { AuthService } from './services/auth.service';
 import type { CodeService } from './services/code.service';
 import type { EvalService } from './services/eval.service';
 import type { GuideService } from './services/guide.service';
+import type { InsightsService } from './services/insights.service';
 import type { HealthChecks } from './services/health.service';
 import type { RepositoryService } from './services/repository.service';
 import type { SearchService } from './services/search.service';
@@ -43,6 +44,7 @@ export interface AppDeps {
   architecture: ArchitectureService;
   trace: TraceService;
   guide: GuideService;
+  insights: InsightsService;
   /** Daily caps on chat answers (per user, and per IP for anonymous demo visitors); omitted in tests. */
   chatQuota?: { user: DailyQuota; anonymous: DailyQuota };
   /** Overrides the SSE heartbeat interval (tests). */
@@ -63,6 +65,7 @@ export async function buildApp({
   architecture,
   trace,
   guide,
+  insights,
   chatQuota,
   chatHeartbeatMs,
   redis,
@@ -131,7 +134,7 @@ export async function buildApp({
   await app.register(codeRoutes, { code });
   await app.register(searchRoutes, { search });
   await app.register(evalRoutes, { evals });
-  await app.register(analysisRoutes, { architecture, trace, guide });
+  await app.register(analysisRoutes, { architecture, trace, guide, insights });
 
   return app;
 }

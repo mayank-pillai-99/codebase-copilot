@@ -2,18 +2,20 @@ import type { FastifyPluginAsync } from 'fastify';
 import { rateLimitKey, viewerId } from '../plugins/auth';
 import type { ArchitectureService } from '../services/architecture.service';
 import type { GuideService } from '../services/guide.service';
+import type { InsightsService } from '../services/insights.service';
 import type { TraceService } from '../services/trace.service';
 
 export interface AnalysisRouteOptions {
   architecture: ArchitectureService;
   trace: TraceService;
   guide: GuideService;
+  insights: InsightsService;
 }
 
 /** Analyses of a snapshot: the architecture map, request traces and the onboarding guide. */
 export const analysisRoutes: FastifyPluginAsync<AnalysisRouteOptions> = async (
   app,
-  { architecture, trace, guide },
+  { architecture, trace, guide, insights },
 ) => {
   // Readable anonymously for demo repositories.
   app.addHook('preHandler', app.identify);
@@ -37,4 +39,8 @@ export const analysisRoutes: FastifyPluginAsync<AnalysisRouteOptions> = async (
     { config: { rateLimit: { max: 20, timeWindow: '1 minute', keyGenerator: rateLimitKey } } },
     async (request) => guide.getSummary(viewerId(request), request.params.id),
   );
+
+  app.get<{ Params: { id: string } }>('/api/snapshots/:id/insights', async (request) => ({
+    insights: await insights.getInsights(viewerId(request), request.params.id),
+  }));
 };
