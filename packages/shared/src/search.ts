@@ -20,6 +20,8 @@ export const searchResultSchema = z.object({
   endLine: z.number().int(),
   kind: z.string(),
   label: z.string().nullable(),
+  /** The first few lines of the matching code, for previews. */
+  snippet: z.string(),
   /** Comparable only within one response. */
   score: z.number(),
   sources: z.array(z.enum(['vector', 'fulltext', 'graph'])),

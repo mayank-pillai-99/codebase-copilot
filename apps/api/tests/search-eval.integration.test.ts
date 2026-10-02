@@ -96,6 +96,9 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('search service (integra
     expect(res.results.map((r) => r.label)).toContain('createPayment');
     expect(res.results[0]).toMatchObject({ sources: ['fulltext'] });
     expect(res.results[0]!.startLine).toBeGreaterThan(0);
+    expect(res.results.find((r) => r.label === 'createPayment')?.snippet).toContain(
+      'createPayment',
+    );
   });
 
   it('hides snapshots from other viewers and refuses unfinished ones', async () => {

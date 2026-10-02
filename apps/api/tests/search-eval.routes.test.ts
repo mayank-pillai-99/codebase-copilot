@@ -70,6 +70,36 @@ describe('POST /api/snapshots/:id/search', () => {
   });
 });
 
+describe('search rate limits', () => {
+  let app: FastifyInstance;
+  afterEach(() => app.close());
+
+  it('lets anonymous visitors type full-text searches but caps embedding searches', async () => {
+    const search: SearchService = {
+      search: async (_v, _s, { retriever }) => ({ retriever, results: [] }),
+    };
+    app = await buildTestApp({ search });
+    const send = (retriever: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/snapshots/${SNAPSHOT}/search`,
+        payload: { query: 'auth', retriever },
+      });
+
+    const hybrid = [];
+    for (let i = 0; i < 11; i++) hybrid.push((await send('hybrid')).statusCode);
+    expect(hybrid.slice(0, 10).every((code) => code === 200)).toBe(true);
+    expect(hybrid[10]).toBe(429);
+
+    await app.close();
+    app = await buildTestApp({ search });
+    const fulltext = [];
+    for (let i = 0; i < 40; i++) fulltext.push((await send('fulltext')).statusCode);
+    expect(fulltext.every((code) => code === 200)).toBe(true);
+    expect((await send('fulltext')).statusCode).toBe(429);
+  });
+});
+
 describe('GET /api/eval/latest', () => {
   let app: FastifyInstance;
   afterEach(() => app.close());

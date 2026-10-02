@@ -7,9 +7,15 @@ export interface SearchRouteOptions {
   search: SearchService;
 }
 
-/** Vector and hybrid searches each cost one embedding request. */
+/**
+ * Full-text search is cheap and runs as people type; vector and hybrid searches each
+ * cost one embedding request from a shared daily quota, so they get tighter limits.
+ */
 async function maxPerMinute(request: FastifyRequest): Promise<number> {
-  return (await rateLimitKey(request)).startsWith('user:') ? 30 : 10;
+  const user = (await rateLimitKey(request)).startsWith('user:');
+  const retriever = (request.body as { retriever?: unknown } | undefined)?.retriever;
+  if (retriever === 'fulltext') return user ? 60 : 40;
+  return user ? 30 : 10;
 }
 
 export const searchRoutes: FastifyPluginAsync<SearchRouteOptions> = async (app, { search }) => {
@@ -20,7 +26,13 @@ export const searchRoutes: FastifyPluginAsync<SearchRouteOptions> = async (app, 
     '/api/snapshots/:id/search',
     {
       config: {
-        rateLimit: { max: maxPerMinute, timeWindow: '1 minute', keyGenerator: rateLimitKey },
+        rateLimit: {
+          max: maxPerMinute,
+          timeWindow: '1 minute',
+          keyGenerator: rateLimitKey,
+          // After body parsing, so the limit can depend on the retriever.
+          hook: 'preHandler',
+        },
       },
     },
     async (request) =>

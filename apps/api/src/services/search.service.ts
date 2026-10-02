@@ -43,10 +43,29 @@ export function createSearchService({
           endLine: c.endLine,
           kind: c.kind,
           label: c.label,
+          snippet: buildSnippet(c.content),
           score: c.score,
           sources: c.sources,
         })),
       };
     },
   };
+}
+
+/**
+ * A short preview of a chunk: its first few non-blank lines with the shared
+ * indentation removed, capped in length.
+ */
+export function buildSnippet(content: string, maxLines = 4, maxChars = 300): string {
+  const lines = content
+    .split('\n')
+    .map((line) => line.replace(/\s+$/, ''))
+    .filter((line) => line.trim() !== '')
+    .slice(0, maxLines);
+  const indent = Math.min(
+    ...lines.map((line) => line.match(/^[ \t]*/)![0].length),
+    Number.POSITIVE_INFINITY,
+  );
+  const text = lines.map((line) => line.slice(Number.isFinite(indent) ? indent : 0)).join('\n');
+  return text.length > maxChars ? `${text.slice(0, maxChars - 1).trimEnd()}…` : text;
 }
