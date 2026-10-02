@@ -5,6 +5,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { CommandPalette } from '@/components/command-palette';
 import { RepoTabs } from '@/components/repo-tabs';
+import { ScrollToTop } from '@/components/scroll-to-top';
 import { ServerWaking } from '@/components/server-waking';
 import { StatusBadge } from '@/components/status-badge';
 import { shortSha } from '@/lib/format';
@@ -37,6 +38,7 @@ export default async function SnapshotLayout(props: LayoutProps<'/repos/[snapsho
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
+      <ScrollToTop />
       <Link
         href={user ? '/repos' : '/'}
         className="group inline-flex w-fit items-center gap-1 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
