@@ -442,10 +442,11 @@ Built so far (✓) and planned. "public" means readable without a session for de
 ✓ GET    /api/snapshots/:id/routes             detected routes + handlers         (public for demos)
 ✓ GET    /api/snapshots/:id/files              file list                          (public for demos)
 ✓ GET    /api/snapshots/:id/file?path=         file content + symbol outline      (public for demos)
+✓ GET    /api/snapshots/:id/references?path=&line=  callers/callees of the symbol at a line (public for demos)
 ✓ POST   /api/snapshots/:id/chat               { message, sessionId? } → SSE      (public for demos)
 ✓ GET    /api/snapshots/:id/chat/sessions      the user's conversations
 ✓ GET    /api/chat/sessions/:sessionId         messages + validated citations
-✓ POST   /api/snapshots/:id/search             { query, retriever?, k? }          (public for demos)
+✓ POST   /api/snapshots/:id/search             { query, retriever?, k? } → ranked chunks with snippets (public for demos)
 ✓ GET    /api/snapshots/:id/architecture       components, imports, integrations  (public for demos)
 ✓ GET    /api/snapshots/:id/routes/:routeId/trace   call tree from the handler   (public for demos)
 ✓ GET    /api/snapshots/:id/guide              deterministic onboarding guide     (public for demos)
@@ -475,7 +476,8 @@ Pages:
 /repos/[snapshotId]       onboarding guide (default tab) + index statistics
    /architecture          interactive architecture map
    /routes?route=<id>     route list + request tracing
-   /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors)
+   /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors, references panel)
+   ⌘K                     command palette on every repository page: fuzzy file names + full-text code search
    /chat                  streamed chat with clickable citations
    /issues                issue locator (Milestone 8)
 /eval                     public evaluation results

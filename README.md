@@ -34,6 +34,14 @@ Pick a route and follow its handler into the functions it calls, breadth-first t
 
 ![Trace of POST /articles](docs/images/request-trace.png)
 
+### Search and navigate like an IDE
+
+Press <kbd>⌘K</kbd> on any repository page to search file names (fuzzy, instant) and code (full-text, as you type) with previews. Searching an identifier lands on its definition first. In the code viewer, a References panel shows who calls the selected function and what it calls, including inline route handlers named by their route.
+
+![Command palette searching for createArticle](docs/images/command-palette.png)
+
+![References for createArticle beside the code](docs/images/references.png)
+
 ## How it works
 
 ```mermaid
