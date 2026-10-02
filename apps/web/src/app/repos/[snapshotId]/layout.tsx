@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { CommandPalette } from '@/components/command-palette';
 import { RepoTabs } from '@/components/repo-tabs';
 import { ServerWaking } from '@/components/server-waking';
 import { StatusBadge } from '@/components/status-badge';
@@ -58,7 +59,12 @@ export default async function SnapshotLayout(props: LayoutProps<'/repos/[snapsho
       {result.ok ? (
         <>
           <Header snapshot={result.data.snapshot} />
-          <RepoTabs snapshotId={snapshotId} />
+          <div className="flex items-end gap-3 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="min-w-0 flex-1">
+              <RepoTabs snapshotId={snapshotId} />
+            </div>
+            {result.data.snapshot.status === 'READY' && <CommandPalette snapshotId={snapshotId} />}
+          </div>
           {props.children as ReactNode}
         </>
       ) : result.unreachable ? (

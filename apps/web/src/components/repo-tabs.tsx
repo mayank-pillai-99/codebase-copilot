@@ -32,10 +32,7 @@ export function RepoTabs({ snapshotId }: { snapshotId: string }) {
   }, [activeIndex]);
 
   return (
-    <nav
-      aria-label="Repository sections"
-      className="relative flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800"
-    >
+    <nav aria-label="Repository sections" className="relative flex gap-1 overflow-x-auto">
       {tabs.map((tab, index) => {
         const active = index === activeIndex;
         return (
