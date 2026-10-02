@@ -16,7 +16,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    // data-scroll-behavior lets Next.js turn off the CSS smooth scrolling during route
+    // changes, so a new page starts at the top instead of animating there.
+    <html lang="en" data-scroll-behavior="smooth" className={`${sans.variable} ${mono.variable}`}>
       <body className="flex min-h-screen flex-col">
         <SiteHeader />
         <div className="flex-1">{children}</div>
