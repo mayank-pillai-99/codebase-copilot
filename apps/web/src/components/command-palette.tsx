@@ -26,6 +26,8 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
   const [query, setQuery] = useState('');
   const [files, setFiles] = useState<FileEntry[] | null>(null);
   const [code, setCode] = useState<SearchResult[]>([]);
+  // The query the code results belong to; while it lags the input, a search is pending.
+  const [codeFor, setCodeFor] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const [active, setActive] = useState(0);
@@ -101,12 +103,14 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
         })
         .then((results) => {
           setCode(results);
+          setCodeFor(q);
           setSearchError(false);
           setSearching(false);
         })
         .catch(() => {
           if (abort.signal.aborted) return;
           setSearchError(true);
+          setCodeFor(q);
           setSearching(false);
         });
     }, DEBOUNCE_MS);
@@ -117,6 +121,7 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
   }, [open, query, snapshotId]);
 
   const q = query.trim();
+  const pending = q.length >= 2 && (searching || codeFor !== q);
   const fileItems: Item[] = matchFiles(files ?? [], q, 6).map((f) => ({
     type: 'file',
     key: `file:${f.path}`,
@@ -205,7 +210,7 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
                 aria-activedescendant={items[current] ? `palette-${current}` : undefined}
                 className="min-w-0 flex-1 bg-transparent py-3.5 text-sm outline-none placeholder:text-zinc-400"
               />
-              {searching && (
+              {pending && (
                 <span
                   aria-hidden
                   className="size-3.5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"
@@ -237,9 +242,7 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
                   </span>
                 </Row>
               ))}
-              {q.length >= 2 && (codeItems.length > 0 || searching) && (
-                <GroupLabel>Code</GroupLabel>
-              )}
+              {q.length >= 2 && (codeItems.length > 0 || pending) && <GroupLabel>Code</GroupLabel>}
               {codeItems.map((item, j) => {
                 const i = fileItems.length + j;
                 if (item.type !== 'code') return null;
@@ -276,13 +279,13 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
                   </Row>
                 );
               })}
-              {q.length >= 2 && searching && codeItems.length === 0 && (
+              {pending && codeItems.length === 0 && (
                 <li className="flex flex-col gap-2 px-3 py-2" aria-hidden>
                   <div className="skeleton h-3 w-2/3" />
                   <div className="skeleton h-3 w-1/2" />
                 </li>
               )}
-              {q && !searching && items.length === 0 && (
+              {q && !pending && items.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
                   {searchError
                     ? 'Search is unavailable right now.'
