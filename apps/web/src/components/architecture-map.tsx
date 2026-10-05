@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Link from 'next/link';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DATA_NODE_ID,
   layoutArchitecture,
@@ -24,6 +24,8 @@ import {
   type MapNode,
 } from '@/lib/architecture-graph';
 import { codeHref } from '@/lib/format';
+import { useTheme } from '@/lib/theme';
+import { useMediaQuery } from '@/lib/use-media-query';
 
 type Selection =
   | { type: 'component'; id: string }
@@ -82,6 +84,21 @@ export function ArchitectureMap({
 }) {
   const [showSupporting, setShowSupporting] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
+  const theme = useTheme();
+  // Phones get a list instead of the canvas, whose boxes would be too small to read.
+  const wide = useMediaQuery('(min-width: 768px)', true);
+  const details = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!wide && selection) details.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [wide, selection]);
+  const select = (mapNode: MapNode) =>
+    setSelection(
+      mapNode.type === 'component'
+        ? { type: 'component', id: mapNode.componentId }
+        : mapNode.type === 'integration'
+          ? { type: 'integration', name: mapNode.name }
+          : { type: 'data' },
+    );
   const layout = useMemo(
     () => layoutArchitecture(architecture, { showSupporting }),
     [architecture, showSupporting],
@@ -153,8 +170,14 @@ export function ArchitectureMap({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="h-[28rem] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 lg:h-[36rem] dark:border-zinc-800 dark:bg-zinc-950">
-          {layout.nodes.length === 0 ? (
+        <MapList
+          nodes={layout.nodes}
+          selectedId={selectedNodeId}
+          onSelect={select}
+          className="md:hidden"
+        />
+        <div className="hidden h-[28rem] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 md:block lg:h-[36rem] dark:border-zinc-800 dark:bg-zinc-950">
+          {!wide ? null : layout.nodes.length === 0 ? (
             <p className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
               No application code to map. Try showing tests, examples and tooling.
             </p>
@@ -164,23 +187,14 @@ export function ArchitectureMap({
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}
-              colorMode="system"
+              colorMode={theme}
               fitView
               fitViewOptions={{ padding: 0.15 }}
               minZoom={0.2}
               nodesDraggable={false}
               nodesConnectable={false}
               proOptions={{ hideAttribution: true }}
-              onNodeClick={(_, node) => {
-                const mapNode = (node.data as { node: MapNode }).node;
-                setSelection(
-                  mapNode.type === 'component'
-                    ? { type: 'component', id: mapNode.componentId }
-                    : mapNode.type === 'integration'
-                      ? { type: 'integration', name: mapNode.name }
-                      : { type: 'data' },
-                );
-              }}
+              onNodeClick={(_, node) => select((node.data as { node: MapNode }).node)}
               onEdgeClick={(_, edge) =>
                 setSelection({ type: 'edge', edge: (edge.data as { edge: MapEdge }).edge })
               }
@@ -191,7 +205,10 @@ export function ArchitectureMap({
             </ReactFlow>
           )}
         </div>
-        <aside className="flex max-h-[36rem] min-w-0 flex-col gap-4 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <aside
+          ref={details}
+          className="flex min-w-0 scroll-mt-20 flex-col gap-4 md:max-h-[36rem] md:overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+        >
           <Details
             snapshotId={snapshotId}
             architecture={architecture}
@@ -449,5 +466,66 @@ function LinkList({
         </ul>
       )}
     </section>
+  );
+}
+
+/** The map as a tappable list, for screens too narrow for the canvas: top layers first. */
+function MapList({
+  nodes,
+  selectedId,
+  onSelect,
+  className,
+}: {
+  nodes: MapNode[];
+  selectedId: string | null;
+  onSelect: (node: MapNode) => void;
+  className: string;
+}) {
+  if (nodes.length === 0) {
+    return (
+      <p className={`text-sm text-zinc-500 dark:text-zinc-400 ${className}`}>
+        No application code to map. Try showing tests, examples and tooling.
+      </p>
+    );
+  }
+  const ordered = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x);
+  return (
+    <ul className={`flex flex-col gap-2 ${className}`}>
+      {ordered.map((node) => {
+        const selected = node.id === selectedId;
+        const external = node.type !== 'component';
+        return (
+          <li key={node.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(node)}
+              aria-pressed={selected}
+              className={`flex w-full min-w-0 flex-col gap-0.5 rounded-lg border px-3 py-2 text-left transition ${
+                selected
+                  ? 'border-brand-500 bg-brand-50 dark:border-brand-500 dark:bg-brand-950/40'
+                  : external
+                    ? 'border-violet-200 bg-violet-50/60 dark:border-violet-900/60 dark:bg-violet-950/30'
+                    : 'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900'
+              }`}
+            >
+              <span className="truncate font-mono text-sm font-medium">
+                {node.type === 'component'
+                  ? node.label
+                  : node.type === 'integration'
+                    ? node.name
+                    : node.label}
+              </span>
+              <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                {node.type === 'component'
+                  ? node.detail
+                  : node.type === 'integration'
+                    ? `external service · ${node.kind}`
+                    : 'data models'}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
