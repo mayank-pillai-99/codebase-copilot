@@ -3,7 +3,7 @@
 import { referencesResponseSchema, type ReferencesResponse } from '@codebase-copilot/shared';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
-import { codeHref } from '@/lib/format';
+import { codeHref, impactHref } from '@/lib/format';
 import { MethodBadge } from './method-badge';
 
 type State =
@@ -90,6 +90,12 @@ function References({ snapshotId, data }: { snapshotId: string; data: References
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {symbol.kind} · lines {symbol.startLine}–{symbol.endLine}
         </span>
+        <Link
+          href={impactHref(snapshotId, symbol.path, symbol.startLine)}
+          className="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-brand-700 hover:underline dark:text-brand-400"
+        >
+          What depends on this? <span aria-hidden>→</span>
+        </Link>
         {data.routes.length > 0 && (
           <span className="mt-1 flex flex-wrap gap-1.5">
             {data.routes.map((route) => (

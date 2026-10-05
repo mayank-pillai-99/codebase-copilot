@@ -11,6 +11,7 @@ export function RepoTabs({ snapshotId }: { snapshotId: string }) {
     { href: base, label: 'Guide' },
     { href: `${base}/architecture`, label: 'Architecture' },
     { href: `${base}/insights`, label: 'Insights' },
+    { href: `${base}/impact`, label: 'Impact' },
     { href: `${base}/routes`, label: 'Routes' },
     { href: `${base}/code`, label: 'Code' },
     { href: `${base}/chat`, label: 'Chat' },

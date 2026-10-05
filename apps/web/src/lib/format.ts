@@ -82,3 +82,8 @@ export function parseLineRange(value: unknown): { start: number; end: number } |
   const end = match[2] ? Number(match[2]) : start;
   return start >= 1 && end >= start ? { start, end } : null;
 }
+
+/** The impact page for the innermost function, method or class at a line. */
+export function impactHref(snapshotId: string, path: string, line: number): string {
+  return `/repos/${snapshotId}/impact?${new URLSearchParams({ path, line: String(line) })}`;
+}
