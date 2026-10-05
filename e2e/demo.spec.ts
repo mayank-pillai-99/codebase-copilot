@@ -64,6 +64,22 @@ test.describe('demo repository', () => {
     await expect(page.getByText('Riskiest file to change')).toBeVisible();
   });
 
+  test('keeps the current tab in view on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/repos/${snapshot}/chat`);
+    const tab = page.getByRole('link', { name: 'Chat', exact: true });
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await expect(tab).toBeInViewport({ ratio: 0.95 });
+  });
+
+  test('lists the architecture on a phone, with details on tap', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/repos/${snapshot}/architecture`);
+    await expect(page.locator('.react-flow')).toHaveCount(0);
+    await page.getByRole('button', { name: /src\/services/ }).click();
+    await expect(page.getByText('Imported by')).toBeVisible();
+  });
+
   test('fits a phone screen without sideways scrolling', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const tab of [
@@ -92,6 +108,19 @@ test('creates an account and signs in', async ({ page }) => {
   await page.locator('form button[type="submit"]').click();
   await expect(page).toHaveURL(/\/repos$/);
   await expect(page.getByRole('heading', { name: 'Repositories' })).toBeVisible();
+});
+
+test('switches theme and remembers the choice', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Switch to light theme' }).click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
 });
 
 test.describe('security', () => {
