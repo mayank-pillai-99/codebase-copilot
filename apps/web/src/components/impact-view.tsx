@@ -1,6 +1,6 @@
 import type { ImpactResponse, Insights } from '@codebase-copilot/shared';
 import Link from 'next/link';
-import type { CSSProperties, ReactNode } from 'react';
+import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { codeHref, impactHref } from '@/lib/format';
 import { MethodBadge } from './method-badge';
 
@@ -32,12 +32,25 @@ export function ImpactView({ snapshotId, impact }: { snapshotId: string; impact:
       <div className="card flex animate-fade-up flex-col gap-3 p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="font-mono text-lg font-semibold break-all">{symbol.qualifiedName}</h2>
-          {link(
-            symbol.path,
-            symbol.startLine,
-            symbol.endLine,
-            `${symbol.path}:${symbol.startLine}–${symbol.endLine}`,
-          )}
+          <Link
+            href={codeHref(snapshotId, symbol.path, symbol.startLine, symbol.endLine)}
+            className="font-mono text-xs text-brand-700 hover:underline dark:text-brand-400"
+          >
+            {/* Wraps only after a slash, and never inside the line range. */}
+            {symbol.path.split('/').map((part, i, parts) => (
+              <Fragment key={i}>
+                {part}
+                {i < parts.length - 1 && (
+                  <>
+                    /<wbr />
+                  </>
+                )}
+              </Fragment>
+            ))}
+            <span className="whitespace-nowrap">
+              :{symbol.startLine}–{symbol.endLine}
+            </span>
+          </Link>
         </div>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {summary(impact, files)}{' '}
