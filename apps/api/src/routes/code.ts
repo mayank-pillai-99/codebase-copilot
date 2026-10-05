@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { viewerId } from '../plugins/auth';
+import { rateLimitKey, viewerId } from '../plugins/auth';
 import type { CodeService } from '../services/code.service';
 
 export interface CodeRouteOptions {
@@ -29,8 +29,13 @@ export const codeRoutes: FastifyPluginAsync<CodeRouteOptions> = async (app, { co
     return code.getReferences(viewerId(request), request.params.id, path, line);
   });
 
-  app.get<{ Params: { id: string } }>('/api/snapshots/:id/impact', async (request) => {
-    const { path, line } = referencesQuery.parse(request.query);
-    return code.getImpact(viewerId(request), request.params.id, path, line);
-  });
+  // Each request loads the snapshot's whole call graph, so it's limited more tightly.
+  app.get<{ Params: { id: string } }>(
+    '/api/snapshots/:id/impact',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute', keyGenerator: rateLimitKey } } },
+    async (request) => {
+      const { path, line } = referencesQuery.parse(request.query);
+      return code.getImpact(viewerId(request), request.params.id, path, line);
+    },
+  );
 };

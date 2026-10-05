@@ -61,6 +61,26 @@ describe('GET /api/snapshots/:id/impact', () => {
     expect(getImpact).toHaveBeenCalledWith(null, SNAPSHOT, 'src/a.ts', 12);
   });
 
+  it('is rate-limited, since it loads the whole call graph', async () => {
+    app = await buildTestApp({
+      code: {
+        ...unusedCode,
+        getImpact: async () => ({
+          symbol: null,
+          routes: [],
+          dependents: [],
+          tests: [],
+          hasTests: false,
+          truncated: false,
+        }),
+      },
+    });
+    const get = () =>
+      app.inject({ method: 'GET', url: `/api/snapshots/${SNAPSHOT}/impact?path=a.ts&line=1` });
+    for (let i = 0; i < 30; i++) expect((await get()).statusCode).toBe(200);
+    expect((await get()).statusCode).toBe(429);
+  });
+
   it('rejects a missing line', async () => {
     app = await buildTestApp();
     const res = await app.inject({
