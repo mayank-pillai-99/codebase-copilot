@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LogoMark } from './logo';
 import { LogoutButton } from './logout-button';
+import { ThemeToggle } from './theme-toggle';
 
 const REPO_URL = 'https://github.com/mayank-pillai-99/codebase-copilot';
 
@@ -108,6 +109,7 @@ export function HeaderNav({ email }: { email: string | null }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <a
             href={REPO_URL}
             className="hidden size-9 items-center justify-center rounded-full text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 sm:flex dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"

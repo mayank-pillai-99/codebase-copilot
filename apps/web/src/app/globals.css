@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 
+/* Dark mode follows <html data-theme>, set before first paint from the saved choice or
+   the system setting (lib/theme.ts), so the header toggle can override the system. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /*
  * Design tokens. One accent (teal, "the signal in the code"), zinc neutrals, Geist for
  * text and code. Motion is short and eased; everything is disabled for people who
@@ -118,8 +122,12 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   scroll-behavior: smooth;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 body {
@@ -171,10 +179,8 @@ body {
 .shiki-token {
   color: var(--shiki-light);
 }
-@media (prefers-color-scheme: dark) {
-  .shiki-token {
-    color: var(--shiki-dark);
-  }
+[data-theme='dark'] .shiki-token {
+  color: var(--shiki-dark);
 }
 
 @media (prefers-reduced-motion: reduce) {
