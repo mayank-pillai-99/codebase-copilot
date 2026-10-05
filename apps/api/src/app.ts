@@ -5,6 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import type { ChatService } from './chat/chat.service';
 import type { Env } from './config/env';
+import { resolveClientIp } from './lib/client-ip';
 import { AppError } from './lib/errors';
 import { loggerOptions } from './lib/logger';
 import type { DailyQuota } from './lib/quota';
@@ -32,7 +33,13 @@ import type { TraceService } from './services/trace.service';
 export interface AppDeps {
   env: Pick<
     Env,
-    'NODE_ENV' | 'LOG_LEVEL' | 'WEB_ORIGIN' | 'APP_VERSION' | 'JWT_SECRET' | 'TRUST_PROXY'
+    | 'NODE_ENV'
+    | 'LOG_LEVEL'
+    | 'WEB_ORIGIN'
+    | 'APP_VERSION'
+    | 'JWT_SECRET'
+    | 'TRUST_PROXY'
+    | 'PROXY_SECRET'
   >;
   healthChecks: HealthChecks;
   auth: AuthService;
@@ -70,11 +77,22 @@ export async function buildApp({
   chatHeartbeatMs,
   redis,
 }: AppDeps): Promise<FastifyInstance> {
-  const app = Fastify({ logger: loggerOptions(env), trustProxy: env.TRUST_PROXY });
+  const { TRUST_PROXY: hops } = env;
+  const app = Fastify({
+    logger: loggerOptions(env),
+    // A hop count trusts only that many proxies nearest the server.
+    trustProxy: typeof hops === 'number' ? (_address: string, hop: number) => hop < hops : hops,
+  });
 
   // Only JSON bodies are accepted. Plain-text bodies are what a cross-site HTML form
   // can send, so refusing them is part of the CSRF defense.
   app.removeContentTypeParser('text/plain');
+
+  // Before the rate limiter, whose keys use it.
+  app.decorateRequest('clientIp', '');
+  app.addHook('onRequest', async (request) => {
+    request.clientIp = resolveClientIp(request, env.PROXY_SECRET);
+  });
 
   await app.register(helmet);
   await app.register(cors, { origin: env.WEB_ORIGIN, credentials: true });
@@ -83,6 +101,7 @@ export async function buildApp({
     ...(redis && { redis, nameSpace: 'rate-limit:' }),
     // If Redis is unavailable, serve the request rather than fail closed.
     skipOnError: true,
+    keyGenerator: (request) => request.clientIp,
   });
   await app.register(authPlugin, {
     jwtSecret: env.JWT_SECRET,

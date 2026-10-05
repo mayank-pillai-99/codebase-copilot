@@ -8,7 +8,12 @@ export function loggerOptions(
   return {
     level: env.LOG_LEVEL,
     redact: {
-      paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+      paths: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'req.headers["x-proxy-secret"]',
+        'res.headers["set-cookie"]',
+      ],
       censor: '[redacted]',
     },
     ...(env.NODE_ENV === 'development' && {

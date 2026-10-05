@@ -10,3 +10,4 @@ export * from './trace';
 export * from './guide';
 export * from './insights';
 export * from './impact';
+export * from './proxy';

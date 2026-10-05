@@ -1,8 +1,9 @@
 import 'server-only';
 import { SESSION_COOKIE } from '@codebase-copilot/shared';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { z } from 'zod';
 import { API_URL } from './config';
+import { forwardingHeaders } from './forwarding';
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -15,9 +16,10 @@ export type ApiResult<T> =
  */
 export async function serverApi<T>(path: string, schema: z.ZodType<T>): Promise<ApiResult<T>> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const forwarded = forwardingHeaders(await headers());
   try {
     const res = await fetch(`${API_URL}${path}`, {
-      headers: token ? { cookie: `${SESSION_COOKIE}=${token}` } : {},
+      headers: { ...forwarded, ...(token && { cookie: `${SESSION_COOKIE}=${token}` }) },
       cache: 'no-store',
       signal: AbortSignal.timeout(10_000),
     });

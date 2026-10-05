@@ -40,7 +40,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (
       const userId = viewerId(request);
       const allowed = userId
         ? await quota?.user.consume(userId)
-        : await quota?.anonymous.consume(request.ip);
+        : await quota?.anonymous.consume(request.clientIp);
       if (allowed === false) {
         throw new AppError(
           429,

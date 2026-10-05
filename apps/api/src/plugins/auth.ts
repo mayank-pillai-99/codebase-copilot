@@ -95,6 +95,6 @@ export async function rateLimitKey(request: FastifyRequest): Promise<string> {
     await request.jwtVerify();
     return `user:${request.user.sub}`;
   } catch {
-    return `ip:${request.ip}`;
+    return `ip:${request.clientIp}`;
   }
 }

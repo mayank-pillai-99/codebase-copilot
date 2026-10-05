@@ -22,6 +22,7 @@ export const testEnv: AppDeps['env'] = {
   APP_VERSION: '1.2.3',
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
   TRUST_PROXY: false,
+  PROXY_SECRET: undefined,
 };
 
 export const healthyChecks: HealthChecks = {

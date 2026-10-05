@@ -20,8 +20,19 @@ const envSchema = z.object({
   APP_VERSION: z.string().default('0.0.0'),
   // Generate with: openssl rand -base64 48
   JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
-  // Set to true only when the API sits behind a proxy that sets X-Forwarded-For (Render, Next.js rewrites).
-  TRUST_PROXY: z.stringbool().default(false),
+  // Proxies in front of the API whose X-Forwarded-For entries are trusted: a hop count
+  // (1 on Render, so clients can't spoof their IP), or true/false. With true, the
+  // left-most entry is used, which any client can set.
+  TRUST_PROXY: z
+    .union([z.string().regex(/^\d+$/).transform(Number), z.stringbool()])
+    .default(false),
+  // Shared with the web server, which forwards each visitor's IP signed with it
+  // (lib/client-ip.ts). Empty = forwarded IPs are ignored. Generate with: openssl rand -base64 48
+  PROXY_SECRET: z
+    .string()
+    .optional()
+    .transform((value) => value || undefined)
+    .refine((value) => value === undefined || value.length >= 32, 'must be at least 32 characters'),
 
   // Server-side only; raises GitHub's rate limit from 60 to 5,000 requests/hour. Empty = none.
   GITHUB_TOKEN: z
@@ -50,6 +61,8 @@ const envSchema = z.object({
   LLM_MODEL: z.string().default('gemini-flash-latest'),
   // Comma-separated models tried in order when the main one is overloaded or rate-limited.
   LLM_FALLBACK_MODELS: z.string().default('gemini-flash-lite-latest'),
+  // New commits each user may index per day, protecting the free database's storage.
+  INDEX_DAILY_LIMIT: z.coerce.number().int().positive().default(10),
   // Answers per user per day, protecting the free LLM quota.
   CHAT_DAILY_LIMIT: z.coerce.number().int().positive().default(100),
 

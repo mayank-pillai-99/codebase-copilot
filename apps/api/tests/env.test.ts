@@ -16,10 +16,16 @@ describe('auth settings', () => {
     );
   });
 
-  it('parses TRUST_PROXY as a boolean and defaults it to false', () => {
+  it('parses TRUST_PROXY as a hop count or a boolean, defaulting to false', () => {
     expect(parseEnv(valid).TRUST_PROXY).toBe(false);
     expect(parseEnv({ ...valid, TRUST_PROXY: 'true' }).TRUST_PROXY).toBe(true);
+    expect(parseEnv({ ...valid, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
     expect(() => parseEnv({ ...valid, TRUST_PROXY: 'maybe' })).toThrow(/TRUST_PROXY/);
+  });
+
+  it('accepts an empty PROXY_SECRET but rejects a short one', () => {
+    expect(parseEnv({ ...valid, PROXY_SECRET: '' }).PROXY_SECRET).toBeUndefined();
+    expect(() => parseEnv({ ...valid, PROXY_SECRET: 'short' })).toThrow(/PROXY_SECRET/);
   });
 });
 
