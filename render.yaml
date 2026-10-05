@@ -19,9 +19,10 @@ services:
       # Free hosting has no background worker service, so the API runs the indexing worker.
       - key: RUN_WORKER_IN_PROCESS
         value: 'true'
-      # Requests arrive through Render's proxy (and Vercel's rewrite before that).
+      # Trust only Render's own proxy, so callers can't spoof their IP. Visitors' IPs
+      # arrive from the web server signed with PROXY_SECRET (docs/security.md).
       - key: TRUST_PROXY
-        value: 'true'
+        value: '1'
       - key: JWT_SECRET
         generateValue: true
       # The rest are secrets or deployment-specific: Render asks for them on first deploy.
@@ -36,4 +37,7 @@ services:
       - key: GITHUB_TOKEN
         sync: false
       - key: DEMO_REPOSITORIES
+        sync: false
+      # The same value as PROXY_SECRET on Vercel.
+      - key: PROXY_SECRET
         sync: false
