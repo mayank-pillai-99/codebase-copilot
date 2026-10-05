@@ -108,6 +108,15 @@ describe('extractTarball', () => {
     );
   });
 
+  it('fails when a small archive unpacks to far more than the limit, skipped files included', async () => {
+    // Zeros compress to almost nothing; the oversized file would only be skipped.
+    const tarball = makeTarball([{ path: 'bomb.ts', content: Buffer.alloc(2_000_000) }]);
+    expect(tarball.length).toBeLessThan(10_000);
+    await expect(extract(tarball, { maxUnpackedBytes: 1_000_000 })).rejects.toThrow(
+      /unpacks to more than 1 MB/,
+    );
+  });
+
   it('fails when accepted files exceed the total size limit', async () => {
     const result = extract(
       makeTarball([

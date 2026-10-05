@@ -17,6 +17,11 @@ export interface ExtractLimits {
   /** Sum of all accepted files, uncompressed. Bounds memory use. */
   maxTotalBytes: number;
   maxCodeFiles: number;
+  /**
+   * Every entry's size once decompressed, skipped files included, so a small archive
+   * that inflates enormously is abandoned. Defaults to 20 times the archive limit.
+   */
+  maxUnpackedBytes?: number;
 }
 
 export interface ExtractedFile extends FileClass {
@@ -57,6 +62,8 @@ export async function extractTarball(
   const skip = (reason: SkipReason) => (skipped[reason] = (skipped[reason] ?? 0) + 1);
   let totalBytes = 0;
   let codeFiles = 0;
+  let unpackedBytes = 0;
+  const maxUnpackedBytes = limits.maxUnpackedBytes ?? limits.maxArchiveBytes * 20;
 
   const input =
     source instanceof ReadableStream
@@ -92,6 +99,15 @@ export async function extractTarball(
       strict: false,
       onReadEntry(entry: ReadEntry) {
         if (failed) return entry.resume();
+        unpackedBytes += entry.size ?? 0;
+        if (unpackedBytes > maxUnpackedBytes) {
+          entry.resume();
+          return fail(
+            new LimitExceededError(
+              `Repository unpacks to more than ${formatMb(maxUnpackedBytes)}, the current limit.`,
+            ),
+          );
+        }
         if (HEADER_TYPES.has(entry.type)) return entry.resume();
         if (!REGULAR_FILE_TYPES.has(entry.type)) {
           skip('not-a-regular-file');
