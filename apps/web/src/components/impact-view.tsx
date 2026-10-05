@@ -233,9 +233,9 @@ export function ImpactStart({
         {mostCalled.length === 0 ? (
           <Empty>No resolved calls between functions in this repository.</Empty>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {mostCalled.map((s) => (
-              <li key={`${s.path}:${s.startLine}`}>
+              <li key={`${s.path}:${s.startLine}`} className="min-w-0">
                 <Link
                   href={impactHref(snapshotId, s.path, s.startLine)}
                   className="card card-hover flex min-w-0 flex-col gap-0.5 px-3 py-2"
