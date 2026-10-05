@@ -151,7 +151,7 @@ docs/             specification, ADRs, deployment guide
 
 ## Status
 
-Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, insights, change impact, request tracing, ⌘K search and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
+Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, insights, change impact, request tracing, ⌘K search and a free-tier deployment, with unit, integration and browser tests in CI and a [security review](docs/security.md). See the [milestones](docs/SPEC.md#21-milestones).
 
 ## Documentation
 

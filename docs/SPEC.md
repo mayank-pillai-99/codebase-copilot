@@ -616,6 +616,8 @@ Each milestone ends with working, tested, committed code. Tests are written alon
 
 **Milestone 5 status (2026-09-30):** the harness (dataset format, metrics, runner, `/eval` page, search endpoint) is built and tested, but no run was published: the v1 questions were LLM-drafted and the owner chose not to publish results from them (ADR 0005). Milestone 6's comparison against hybrid search would need a dataset the owner is happy to publish.
 
+**Milestone 10 status (2026-10-05):** done, except publishing eval results (see Milestone 5): README with architecture diagrams and a demo video, `docs/deployment.md`, a security review (`docs/security.md`) and Playwright browser tests in CI.
+
 ---
 
 ## 22. Resume statement (only after it's true)
