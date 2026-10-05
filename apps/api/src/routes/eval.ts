@@ -6,7 +6,7 @@ export interface EvalRouteOptions {
   evals: EvalService;
 }
 
-/** Public: evaluation results are published on /eval. */
+/** Public: the latest evaluation run, for the /eval page (not linked from the UI). */
 export const evalRoutes: FastifyPluginAsync<EvalRouteOptions> = async (app, { evals }) => {
   app.get('/api/eval/latest', async (_request, reply): Promise<EvalLatestResponse> => {
     // Results change only when a new run is imported at startup.

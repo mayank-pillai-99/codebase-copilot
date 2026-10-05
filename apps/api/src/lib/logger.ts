@@ -1,7 +1,7 @@
 import type { FastifyServerOptions } from 'fastify';
 import type { Env } from '../config/env';
 
-/** Pino options shared by the API (and later the worker). Never log credentials. */
+/** Pino options for the API. Never log credentials. */
 export function loggerOptions(
   env: Pick<Env, 'NODE_ENV' | 'LOG_LEVEL'>,
 ): FastifyServerOptions['logger'] {

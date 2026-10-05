@@ -12,7 +12,7 @@ export interface AnalysisRouteOptions {
   insights: InsightsService;
 }
 
-/** Analyses of a snapshot: the architecture map, request traces and the onboarding guide. */
+/** Analyses of a snapshot: the architecture map, request traces, the onboarding guide and insights. */
 export const analysisRoutes: FastifyPluginAsync<AnalysisRouteOptions> = async (
   app,
   { architecture, trace, guide, insights },

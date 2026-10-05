@@ -122,8 +122,6 @@ export async function createCodeParser(): Promise<CodeParser> {
   };
 }
 
-// ---------------------------------------------------------------------------
-
 const MAX_SIGNATURE = 300;
 const MAX_DOC = 1_000;
 const MAX_CALLEE_TEXT = 120;
