@@ -21,7 +21,7 @@ const envSchema = z.object({
   // Generate with: openssl rand -base64 48
   JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
   // Proxies in front of the API whose X-Forwarded-For entries are trusted: a hop count
-  // (1 on Render, so clients can't spoof their IP), or true/false. With true, the
+  // (3 on Render, so clients can't spoof their IP), or true/false. With true, the
   // left-most entry is used, which any client can set.
   TRUST_PROXY: z
     .union([z.string().regex(/^\d+$/).transform(Number), z.stringbool()])

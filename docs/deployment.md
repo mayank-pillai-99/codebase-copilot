@@ -50,7 +50,7 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
    - `GEMINI_API_KEY`: from AI Studio
    - `GITHUB_TOKEN`: a fine-grained token with _Public repositories (read-only)_ access. Without it GitHub allows only 60 requests/hour, shared by everyone using the demo.
    - `DEMO_REPOSITORIES`: e.g. `gothinkster/node-express-realworld-example-app,honojs/examples`. Pick small repositories so they index quickly on a free instance.
-   - `PROXY_SECRET`: generate with `openssl rand -base64 48` and use the **same value** on Vercel (step 5). The web server signs each visitor's IP with it, so per-visitor rate limits work through the `/api` rewrite. `TRUST_PROXY` is set to `1` in `render.yaml`: only Render's own proxy is trusted, so callers can't spoof their IP ([security.md](security.md)).
+   - `PROXY_SECRET`: generate with `openssl rand -base64 48` and use the **same value** on Vercel (step 5). The web server signs each visitor's IP with it, so per-visitor rate limits work through the `/api` rewrite. `TRUST_PROXY` is set to `3` in `render.yaml`: only Render's own proxies are trusted (one in the container, its load balancer, its CDN edge), so callers can't spoof their IP ([security.md](security.md)).
 3. Deploy. The container runs `prisma migrate deploy`, starts the API, and begins indexing the demo repositories in the background.
 4. Check `https://<service>.onrender.com/api/health`. All three dependencies should report `ok`.
 
