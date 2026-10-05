@@ -86,12 +86,13 @@ describe('computeImpact', () => {
     });
   });
 
-  it('lists dependents by distance, including top-level code, without tests', () => {
+  it('lists dependents by distance, including inline handlers and top-level code, without tests', () => {
     expect(impact.dependents.map((d) => [d.label, d.depth])).toEqual([
       ['find', 1],
       ['top-level code', 1],
       ['getUser', 2],
       ['showUser', 3],
+      ['POST /users handler', 3],
       ['other', 4],
     ]);
   });

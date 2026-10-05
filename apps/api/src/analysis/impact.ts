@@ -164,6 +164,22 @@ export function computeImpact(input: ImpactInput): ImpactResult {
           depth: d,
         };
       }),
+    // Inline route handlers have no symbol of their own but are code that calls it.
+    ...input.routes.flatMap((r) => {
+      const inline = inlineRoutes.get(r.id);
+      return inline
+        ? [
+            {
+              label: `${r.method} ${r.path} handler`,
+              kind: 'route handler',
+              path: r.filePath,
+              startLine: r.startLine,
+              endLine: r.endLine,
+              depth: inline.depth,
+            },
+          ]
+        : [];
+    }),
     ...topLevel.values(),
   ].sort((a, b) => a.depth - b.depth || a.path.localeCompare(b.path) || a.startLine - b.startLine);
 
