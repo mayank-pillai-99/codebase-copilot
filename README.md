@@ -157,3 +157,4 @@ Built so far: ingestion and parsing, hybrid search, grounded chat, the code view
 - [Project specification](docs/SPEC.md)
 - [Architecture decisions](docs/decisions/)
 - [Deploying on free tiers](docs/deployment.md)
+- [Security: controls, review findings and accepted risks](docs/security.md)

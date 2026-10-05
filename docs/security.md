@@ -1,0 +1,47 @@
+# Security
+
+What protects Codebase Copilot, what a review on 2026-10-05 found and fixed, and the risks accepted on purpose. The rules themselves are in [SPEC §17](SPEC.md#17-security).
+
+## Threat model
+
+The app downloads and parses code from arbitrary public GitHub repositories, serves it to anonymous visitors for the demo repositories, and spends a shared free-tier AI quota. So the main risks are:
+
+1. **Hostile repositories:** archives built to exhaust memory or CPU, path tricks, or code that would run if executed.
+2. **Abuse of shared free resources:** draining the Gemini quota, filling the 0.5 GB database, or brute-forcing logins.
+3. **The usual web risks:** cross-site scripting through code or AI output, CSRF, clickjacking, and reading other users' data.
+
+## Controls
+
+| Area             | Control                                                                                                                                                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository code  | Never executed: no installs, builds or config evaluation. Tarballs are read in memory (nothing touches disk), with caps on compressed size, unpacked size, per-file size, source-file count and total source size. Absolute paths, `..` and links are skipped. |
+| GitHub requests  | Only `owner/repo` references that match GitHub's naming rules are accepted, and URLs are built server-side for a fixed host, so users can't choose fetch targets (no SSRF).                                                                                    |
+| Authentication   | Argon2id password hashes. Login takes the same time whether or not the email exists. Sessions are signed JWTs (32+ character secret) in `httpOnly`, `SameSite=Lax` cookies, `Secure` in production.                                                            |
+| CSRF             | `SameSite=Lax` cookies, plus the API accepts only JSON bodies, which a cross-site form can't send.                                                                                                                                                             |
+| Authorization    | Every snapshot read goes through `findVisibleSnapshot()` (tracked by the viewer, or a demo); conversations are scoped to their owner. Integration tests cover hidden snapshots.                                                                                |
+| Input            | Every route validates its input with zod schemas from `packages/shared`. Database access uses Prisma or parameterized raw SQL.                                                                                                                                 |
+| Untrusted output | Nothing is rendered as raw HTML (no `dangerouslySetInnerHTML`). AI answers go through a small markdown parser that produces data, not markup, and citations are checked against the database on the server.                                                    |
+| Abuse limits     | Per-minute rate limits on login, registration, search, chat, summaries and repository submission; daily quotas on chat answers (per user and per anonymous IP) and on new indexing jobs per user. Counters live in Redis.                                      |
+| Client IP        | The API trusts one proxy hop on Render (`TRUST_PROXY=1`). The Next.js server forwards each visitor's IP in a header signed with a shared `PROXY_SECRET`, and the API ignores that header without the secret.                                                   |
+| Headers          | API: helmet defaults (CSP, `X-Frame-Options`, `nosniff`, HSTS, no referrer). Web: `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy and a permissions policy.                                                             |
+| Secrets and logs | Secrets live only in environment variables, never in `NEXT_PUBLIC_*`. Logs redact cookies, authorization and the proxy secret, and never include file contents.                                                                                                |
+| Dependencies     | `npm audit` is clean. Vulnerable versions that Prisma's CLI and the build tools pull in are replaced with patched ones through `overrides` in `package.json`.                                                                                                  |
+
+## Findings from the 2026-10-05 review
+
+| Finding                                                                                                                                                                                                                                                                                                                               | Severity | Fix                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Client IP could be spoofed.** With `TRUST_PROXY=true`, the API used the left-most `X-Forwarded-For` entry, which callers set themselves. Sending a different value per request to the API directly gave a fresh rate-limit bucket each time (confirmed against production), bypassing the login limit and the anonymous chat quota. | High     | Trust a hop count instead of `true`, and forward visitor IPs from the web server signed with a shared secret (`lib/client-ip.ts`, `apps/web/src/proxy.ts`). Tests cover spoofed headers. |
+| **Decompression bomb.** Only the compressed archive size was capped, and skipped files didn't count, so a few kilobytes could unpack into gigabytes and keep the worker busy.                                                                                                                                                         | Medium   | Cap the unpacked size of every entry, skipped ones included (20 times the archive limit by default).                                                                                     |
+| **Unbounded storage per account.** Repository submission was limited per hour, but nothing capped the total, so one account could fill the free database.                                                                                                                                                                             | Medium   | A daily quota on new indexing jobs per user (`INDEX_DAILY_LIMIT`, default 10). Re-opening an indexed or queued commit doesn't count.                                                     |
+| **Vulnerable dependencies.** `mysql2` and `deepmerge-ts` (inside Prisma's CLI) and `esbuild` (build tools). None was reachable in this app: Postgres only, our own config objects, and no esbuild dev server.                                                                                                                         | Low      | npm `overrides` to patched versions; Prisma, the builds and all tests verified afterwards.                                                                                               |
+| **Missing web security headers.** The web app sent only HSTS, so it could be framed (clickjacking).                                                                                                                                                                                                                                   | Low      | Added framing, MIME-sniffing, referrer and permissions headers in `next.config.ts`.                                                                                                      |
+
+## Accepted risks
+
+- **No script-src CSP on the web app.** Next.js inlines scripts, so a strict policy needs per-request nonces and dynamic rendering everywhere. Nothing renders raw HTML, which is the main defense against XSS here.
+- **Logout doesn't revoke a token.** Sessions are stateless JWTs that expire after seven days; logout clears the cookie. A revocation list would add a database read to every request.
+- **Registration reveals whether an email is registered** (a clear "already exists" message). It's rate-limited; a vaguer message would cost usability for little gain on a demo app.
+- **Anonymous demo conversations are readable by anyone with the link.** Their IDs are random UUIDs, and only demo repositories can be discussed anonymously.
+- **Limits fail open.** If Redis is unavailable, rate limits and quotas let requests through rather than taking the site down.
+- **Direct callers share coarse buckets.** Requests that bypass the web server are counted by the address Render's proxy reports, which can't be spoofed but may group several callers together.

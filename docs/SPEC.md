@@ -532,6 +532,9 @@ Tree-sitter grammars (WASM), the ML model artifact and embeddings for demo repos
 - Validate all API input; enforce ownership on every snapshot/session access.
 - Rate-limit all LLM-backed endpoints before any public deploy.
 - Logs never contain passwords, tokens, API keys, or full file contents.
+- Rate limits and quotas key on a client IP that callers can't spoof (a trusted hop count, plus IPs forwarded by the web server signed with a shared secret).
+
+Controls, review findings and accepted risks: [`docs/security.md`](security.md).
 
 ---
 

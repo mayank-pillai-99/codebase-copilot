@@ -50,6 +50,7 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
    - `GEMINI_API_KEY`: from AI Studio
    - `GITHUB_TOKEN`: a fine-grained token with _Public repositories (read-only)_ access. Without it GitHub allows only 60 requests/hour, shared by everyone using the demo.
    - `DEMO_REPOSITORIES`: e.g. `gothinkster/node-express-realworld-example-app,honojs/examples`. Pick small repositories so they index quickly on a free instance.
+   - `PROXY_SECRET`: generate with `openssl rand -base64 48` and use the **same value** on Vercel (step 5). The web server signs each visitor's IP with it, so per-visitor rate limits work through the `/api` rewrite. `TRUST_PROXY` is set to `1` in `render.yaml`: only Render's own proxy is trusted, so callers can't spoof their IP ([security.md](security.md)).
 3. Deploy. The container runs `prisma migrate deploy`, starts the API, and begins indexing the demo repositories in the background.
 4. Check `https://<service>.onrender.com/api/health`. All three dependencies should report `ok`.
 
@@ -57,7 +58,7 @@ Codebase Copilot runs on four free services, none of which needs a credit card f
 
 1. **Add New → Project** and import the repository.
 2. Set **Root Directory** to `apps/web`. Vercel detects the npm workspace and installs from the repository root, so `@codebase-copilot/shared` resolves.
-3. Add the environment variable `API_URL=https://<service>.onrender.com`. It's read at **build** time for the `/api/*` rewrites and at request time by server components, so redeploy after changing it.
+3. Add the environment variables `API_URL=https://<service>.onrender.com` and `PROXY_SECRET` (the same value as on Render; server-side only, never `NEXT_PUBLIC_`). `API_URL` is read at **build** time for the `/api/*` rewrites and at request time by server components, so redeploy after changing either.
 4. Deploy, then set Render's `WEB_ORIGIN` to the Vercel URL.
 
 ## 6. Smoke test
