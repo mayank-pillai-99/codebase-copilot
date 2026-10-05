@@ -38,23 +38,26 @@ export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = async (
     async (request, reply) => {
       const { message, sessionId } = chatRequestSchema.parse(request.body);
       const userId = viewerId(request);
-      const allowed = userId
-        ? await quota?.user.consume(userId)
-        : await quota?.anonymous.consume(request.clientIp);
-      if (allowed === false) {
-        throw new AppError(
-          429,
-          userId
-            ? "You've reached today's question limit. It resets at midnight UTC."
-            : "The demo's daily question limit for your network has been reached. Sign up to keep asking.",
-        );
-      }
-      // Everything that can fail with a status code happens before the stream starts.
+      // Counted only for questions that will be answered, not ones refused below.
+      const admit = async () => {
+        const allowed = userId
+          ? await quota?.user.consume(userId)
+          : await quota?.anonymous.consume(request.clientIp);
+        if (allowed === false) {
+          throw new AppError(
+            429,
+            userId
+              ? "You've reached today's question limit. It resets at midnight UTC."
+              : "The demo's daily question limit for your network has been reached. Sign up to keep asking.",
+          );
+        }
+      };
       const prepared = await chat.prepare({
         userId,
         snapshotId: request.params.id,
         sessionId,
         message,
+        admit,
       });
 
       reply.hijack();

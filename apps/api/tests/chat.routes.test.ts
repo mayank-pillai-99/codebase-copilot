@@ -61,6 +61,7 @@ describe('POST /api/snapshots/:id/chat', () => {
       snapshotId: SNAPSHOT,
       sessionId: undefined,
       message: 'How does auth work?',
+      admit: expect.any(Function),
     });
   });
 
@@ -143,7 +144,14 @@ describe('POST /api/snapshots/:id/chat', () => {
   it('enforces daily quotas per user and per IP for anonymous visitors', async () => {
     const user = { consume: vi.fn(async () => false) };
     const anonymous = { consume: vi.fn(async () => false) };
-    app = await buildTestApp({ chatQuota: { user, anonymous } });
+    const admitting: ChatService = {
+      ...unusedChat,
+      prepare: async ({ admit, message }) => {
+        await admit?.();
+        return { sessionId: SESSION, snapshotId: SNAPSHOT, question: message, history: [] };
+      },
+    };
+    app = await buildTestApp({ chat: admitting, chatQuota: { user, anonymous } });
     const { userId, cookies } = await signIn(app);
 
     const signedIn = await app.inject({
@@ -165,5 +173,19 @@ describe('POST /api/snapshots/:id/chat', () => {
     expect(visitor.statusCode).toBe(429);
     expect(visitor.json().error).toMatch(/Sign up to keep asking/);
     expect(anonymous.consume).toHaveBeenCalledWith('203.0.113.7');
+  });
+
+  it("doesn't count questions that are refused before answering", async () => {
+    const user = { consume: vi.fn(async () => true) };
+    app = await buildTestApp({ chatQuota: { user, anonymous: user } });
+    const { cookies } = await signIn(app);
+    const refused = await app.inject({
+      method: 'POST',
+      url: `/api/snapshots/${SNAPSHOT}/chat`,
+      cookies,
+      payload: { message: 'hi' },
+    });
+    expect(refused.statusCode).toBe(501);
+    expect(user.consume).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,8 @@ export interface ChatService {
     snapshotId: string;
     sessionId?: string | undefined;
     message: string;
+    /** Runs once access is checked and before anything is saved, e.g. a daily quota. */
+    admit?: () => Promise<void>;
   }): Promise<PreparedChat>;
   /** Streams the answer as events. Never throws; failures become an `error` event. */
   answer(
@@ -96,7 +98,7 @@ export function createChatService(deps: {
   }
 
   return {
-    async prepare({ userId, snapshotId, sessionId, message }) {
+    async prepare({ userId, snapshotId, sessionId, message, admit }) {
       const snapshot = await findVisibleSnapshot(prisma, userId, snapshotId, demo);
       if (snapshot.status !== 'READY') {
         throw new AppError(
@@ -110,6 +112,7 @@ export function createChatService(deps: {
           'Chat is not available: no AI provider is configured on the server.',
         );
       }
+      await admit?.();
 
       let session;
       if (sessionId) {
