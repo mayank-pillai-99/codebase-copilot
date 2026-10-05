@@ -22,6 +22,7 @@ export function RepoTabs({ snapshotId }: { snapshotId: string }) {
 
   // One underline that slides to the active tab.
   const refs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const nav = useRef<HTMLElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
   useLayoutEffect(() => {
     const measure = () => {
@@ -33,8 +34,41 @@ export function RepoTabs({ snapshotId }: { snapshotId: string }) {
     return () => window.removeEventListener('resize', measure);
   }, [activeIndex]);
 
+  // On narrow screens the row scrolls: keep the current tab in view, and fade whichever
+  // edge has more tabs beyond it so the rest are discoverable.
+  const [more, setMore] = useState({ left: false, right: false });
+  useLayoutEffect(() => {
+    const row = nav.current;
+    const el = refs.current[activeIndex];
+    if (!row) return;
+    if (el) row.scrollLeft = el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2;
+    const update = () =>
+      setMore({
+        left: row.scrollLeft > 1,
+        right: row.scrollLeft + row.clientWidth < row.scrollWidth - 1,
+      });
+    update();
+    row.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      row.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [activeIndex]);
+  const mask =
+    more.left || more.right
+      ? `linear-gradient(to right, ${more.left ? 'transparent 0, black 2rem' : 'black 0'}, ${
+          more.right ? 'black calc(100% - 2rem), transparent 100%' : 'black 100%'
+        })`
+      : undefined;
+
   return (
-    <nav aria-label="Repository sections" className="relative flex gap-1 overflow-x-auto">
+    <nav
+      ref={nav}
+      aria-label="Repository sections"
+      className="relative flex gap-1 overflow-x-auto [scrollbar-width:none]"
+      style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+    >
       {tabs.map((tab, index) => {
         const active = index === activeIndex;
         return (
