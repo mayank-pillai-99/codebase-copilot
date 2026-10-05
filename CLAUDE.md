@@ -28,6 +28,7 @@ npm run db:migrate          # prisma migrate dev (creates/applies migrations)
 npm run dev                 # API :4000, indexing worker, web :3000 (or dev:api / dev:web)
 npm run lint && npm run format:check && npm run typecheck
 npm test                    # unit tests; add RUN_INTEGRATION=1 with DATABASE_URL/REDIS_URL set for integration
+npm run build && npm run test:e2e   # Playwright browser tests (e2e/); seeds an offline demo repo, uses ports 3000/4000
 npm run build
 GITHUB_TOKEN=$(gh auth token) npm run eval   # retrieval evaluation (eval/README.md); -- --draft for a trial run
 docker compose --profile app up --build   # whole stack in containers

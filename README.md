@@ -132,6 +132,7 @@ Sign up and add a repository, or set `DEMO_REPOSITORIES` to explore some without
 ```bash
 npm run lint && npm run typecheck
 RUN_INTEGRATION=1 npm test                 # needs DATABASE_URL and REDIS_URL from .env
+npm run build && npm run test:e2e         # browser tests (Playwright) on an offline demo repo; stop dev servers first
 docker compose --profile app up --build    # whole stack in containers
 ```
 

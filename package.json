@@ -23,10 +23,12 @@
     "infra:down": "docker compose down",
     "db:migrate": "npm run db:migrate --workspace @codebase-copilot/api",
     "db:generate": "npm run db:generate --workspace @codebase-copilot/api",
-    "eval": "npm run eval --workspace @codebase-copilot/api --"
+    "eval": "npm run eval --workspace @codebase-copilot/api --",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
+    "@playwright/test": "^1.63.0",
     "eslint": "^10.11.0",
     "globals": "^17.12.0",
     "prettier": "^3.9.9",
