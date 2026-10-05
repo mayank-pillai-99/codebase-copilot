@@ -27,15 +27,17 @@ const TOP = 8;
 const TEST_HELPER = /mock|fixture|helper|setup|support|stub|fake/i;
 const MAX_CYCLES = 12;
 
+/** A test file; mocks, fixtures and helpers live with the tests but don't test anything. */
+export function isTestFile(path: string): boolean {
+  return classifyRole(path) === 'test' && !TEST_HELPER.test(path.split('/').at(-1) ?? '');
+}
+
 export function computeInsights(input: InsightsInput): Insights {
   const source = new Set(
     input.files
       .filter((f) => f.kind === 'CODE' && classifyRole(f.path) === 'source')
       .map((f) => f.path),
   );
-  // Mocks, fixtures and helpers live with the tests but import code without testing it.
-  const isTest = (path: string) =>
-    classifyRole(path) === 'test' && !TEST_HELPER.test(path.split('/').at(-1) ?? '');
 
   // Most-called functions: resolved calls from application code.
   const callCounts = new Map<string, number>();
@@ -75,10 +77,10 @@ export function computeInsights(input: InsightsInput): Insights {
   const importedBy = new Map<string, Set<string>>();
   for (const { from, to } of input.imports) {
     if (!source.has(to) || from === to) continue;
-    if (isTest(from)) testedBy.set(to, (testedBy.get(to) ?? new Set()).add(from));
+    if (isTestFile(from)) testedBy.set(to, (testedBy.get(to) ?? new Set()).add(from));
     else if (source.has(from)) importedBy.set(to, (importedBy.get(to) ?? new Set()).add(from));
   }
-  const hasTests = input.files.some((f) => f.kind === 'CODE' && isTest(f.path));
+  const hasTests = input.files.some((f) => f.kind === 'CODE' && isTestFile(f.path));
   const untested = [...source]
     .filter((path) => !testedBy.has(path))
     .map((path) => ({ path, importedBy: importedBy.get(path)?.size ?? 0 }))

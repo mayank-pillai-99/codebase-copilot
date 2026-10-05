@@ -65,6 +65,9 @@ export const unusedCode: CodeService = {
   getReferences: async () => {
     throw new AppError(404, 'File not found in this snapshot');
   },
+  getImpact: async () => {
+    throw new AppError(404, 'File not found in this snapshot');
+  },
 };
 
 /** Search service for tests that don't exercise it. */

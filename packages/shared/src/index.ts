@@ -9,3 +9,4 @@ export * from './architecture';
 export * from './trace';
 export * from './guide';
 export * from './insights';
+export * from './impact';

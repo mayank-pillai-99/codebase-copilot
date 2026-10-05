@@ -150,4 +150,44 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('code browsing (integrat
       ).rejects.toMatchObject({ statusCode: 404 });
     });
   });
+
+  describe('impact', () => {
+    const impact = (path: string, line: number) =>
+      createCodeService(prisma).getImpact(userId, snapshotId, path, line);
+    const controller = 'src/controllers/payments.controller.ts';
+    const service = 'src/services/payment.service.ts';
+
+    it('walks callers back to the routes that reach a method', async () => {
+      const r = await impact(service, 3);
+      expect(r.symbol?.qualifiedName).toBe('PaymentService.create');
+      expect(r.dependents.map((d) => [d.label, d.depth])).toEqual([['createPayment', 1]]);
+      expect(r.routes).toEqual([
+        expect.objectContaining({
+          method: 'POST',
+          path: '/payments',
+          depth: 1,
+          chain: [
+            expect.objectContaining({ label: 'createPayment', path: controller, callLine: 5 }),
+            expect.objectContaining({ label: 'PaymentService.create', callLine: null }),
+          ],
+        }),
+      ]);
+      expect(r).toMatchObject({ tests: [], hasTests: false, truncated: false });
+    });
+
+    it('counts callers of any method when the target is a class', async () => {
+      const r = await impact(service, 1);
+      expect(r.symbol?.kind).toBe('class');
+      expect(r.dependents.map((d) => d.label)).toEqual(['createPayment']);
+      expect(r.routes.map((x) => `${x.method} ${x.path}`)).toEqual(['POST /payments']);
+    });
+
+    it('returns no symbol outside any function, and 404 for unknown files or viewers', async () => {
+      expect((await impact(controller, 2)).symbol).toBeNull();
+      await expect(impact('nope.ts', 1)).rejects.toMatchObject({ statusCode: 404 });
+      await expect(
+        createCodeService(prisma).getImpact(null, snapshotId, controller, 5),
+      ).rejects.toMatchObject({ statusCode: 404 });
+    });
+  });
 });

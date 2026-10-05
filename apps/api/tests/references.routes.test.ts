@@ -38,3 +38,35 @@ describe('GET /api/snapshots/:id/references', () => {
     },
   );
 });
+
+describe('GET /api/snapshots/:id/impact', () => {
+  let app: FastifyInstance;
+  afterEach(() => app.close());
+
+  it('passes the path and line to the service, anonymously for demos', async () => {
+    const getImpact = vi.fn<CodeService['getImpact']>(async () => ({
+      symbol: null,
+      routes: [],
+      dependents: [],
+      tests: [],
+      hasTests: false,
+      truncated: false,
+    }));
+    app = await buildTestApp({ code: { ...unusedCode, getImpact } });
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/snapshots/${SNAPSHOT}/impact?path=src%2Fa.ts&line=12`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(getImpact).toHaveBeenCalledWith(null, SNAPSHOT, 'src/a.ts', 12);
+  });
+
+  it('rejects a missing line', async () => {
+    app = await buildTestApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/snapshots/${SNAPSHOT}/impact?path=a.ts`,
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

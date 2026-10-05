@@ -1,4 +1,11 @@
-import type { FileEntry, FileResponse, ReferencesResponse } from '@codebase-copilot/shared';
+import type {
+  FileEntry,
+  FileResponse,
+  ImpactResponse,
+  ReferencesResponse,
+} from '@codebase-copilot/shared';
+import { computeImpact } from '../analysis/impact';
+import { isTestFile } from '../analysis/insights';
 import { AppError } from '../lib/errors';
 import type { PrismaClient } from '../lib/prisma';
 import { findVisibleSnapshot, type DemoRepositories } from './snapshot-access';
@@ -14,6 +21,13 @@ export interface CodeService {
     path: string,
     line: number,
   ): Promise<ReferencesResponse>;
+  /** What may be affected by changing the innermost symbol containing `line` in `path`. */
+  getImpact(
+    viewerId: string | null,
+    snapshotId: string,
+    path: string,
+    line: number,
+  ): Promise<ImpactResponse>;
 }
 
 const MAX_REFERENCES = 50;
@@ -64,23 +78,7 @@ export function createCodeService(prisma: PrismaClient, demo: DemoRepositories =
     },
 
     async getReferences(viewerId, snapshotId, path, line) {
-      const snapshot = await findVisibleSnapshot(prisma, viewerId, snapshotId, demo);
-      if (snapshot.status !== 'READY') {
-        throw new AppError(409, 'This snapshot is still being indexed.');
-      }
-      const file = await prisma.file.findUnique({
-        where: { snapshotId_path: { snapshotId, path } },
-        select: { id: true },
-      });
-      if (!file) throw new AppError(404, 'File not found in this snapshot');
-
-      // The tightest symbol around the line: a method rather than its class.
-      const symbol = (
-        await prisma.symbol.findMany({
-          where: { fileId: file.id, startLine: { lte: line }, endLine: { gte: line } },
-          select: { id: true, qualifiedName: true, kind: true, startLine: true, endLine: true },
-        })
-      ).sort((a, b) => a.endLine - a.startLine - (b.endLine - b.startLine))[0];
+      const { file, symbol } = await symbolAt(prisma, demo, viewerId, snapshotId, path, line);
       if (!symbol) return { symbol: null, routes: [], callers: [], callees: [], truncated: false };
 
       // A class's own calls are its constructor's; its methods are separate symbols.
@@ -207,5 +205,126 @@ export function createCodeService(prisma: PrismaClient, demo: DemoRepositories =
         truncated: callerEdges.length > MAX_REFERENCES || callees.length > MAX_REFERENCES,
       };
     },
+
+    async getImpact(viewerId, snapshotId, path, line) {
+      const { symbol } = await symbolAt(prisma, demo, viewerId, snapshotId, path, line);
+      if (!symbol) {
+        return {
+          symbol: null,
+          routes: [],
+          dependents: [],
+          tests: [],
+          hasTests: false,
+          truncated: false,
+        };
+      }
+      const [files, symbols, calls, routes] = await Promise.all([
+        prisma.file.findMany({
+          where: { snapshotId, kind: 'CODE' },
+          select: { id: true, path: true },
+        }),
+        prisma.symbol.findMany({
+          where: { snapshotId },
+          select: {
+            id: true,
+            fileId: true,
+            qualifiedName: true,
+            kind: true,
+            startLine: true,
+            endLine: true,
+          },
+        }),
+        prisma.callEdge.findMany({
+          where: { snapshotId, resolved: true, toSymbolId: { not: null } },
+          select: { fromSymbolId: true, toSymbolId: true, fileId: true, line: true },
+        }),
+        prisma.route.findMany({
+          where: { snapshotId },
+          select: {
+            id: true,
+            method: true,
+            path: true,
+            fileId: true,
+            handlerSymbolId: true,
+            startLine: true,
+            endLine: true,
+          },
+        }),
+      ]);
+      const pathOf = new Map(files.map((f) => [f.id, f.path]));
+      const known = (fileId: string) => pathOf.has(fileId);
+
+      // Changing a class can affect callers of any of its methods.
+      const targets = [symbol.id];
+      if (symbol.kind === 'CLASS') {
+        const prefix = `${symbol.qualifiedName}.`;
+        for (const s of symbols) {
+          if (s.fileId === symbol.fileId && s.qualifiedName.startsWith(prefix)) targets.push(s.id);
+        }
+      }
+
+      const impact = computeImpact({
+        symbols: symbols
+          .filter((s) => known(s.fileId))
+          .map(({ fileId, ...s }) => ({ ...s, path: pathOf.get(fileId)! })),
+        calls: calls
+          .filter((c) => known(c.fileId))
+          .map((c) => ({
+            fromSymbolId: c.fromSymbolId,
+            toSymbolId: c.toSymbolId!,
+            path: pathOf.get(c.fileId)!,
+            line: c.line,
+          })),
+        routes: routes
+          .filter((r) => known(r.fileId))
+          .map(({ fileId, ...r }) => ({ ...r, filePath: pathOf.get(fileId)! })),
+        targets,
+        hasTests: files.some((f) => isTestFile(f.path)),
+      });
+      return {
+        symbol: {
+          qualifiedName: symbol.qualifiedName,
+          kind: symbol.kind.toLowerCase(),
+          path,
+          startLine: symbol.startLine,
+          endLine: symbol.endLine,
+        },
+        ...impact,
+      };
+    },
   };
+}
+
+/** The tightest symbol around a line (a method rather than its class), if any. */
+async function symbolAt(
+  prisma: PrismaClient,
+  demo: DemoRepositories,
+  viewerId: string | null,
+  snapshotId: string,
+  path: string,
+  line: number,
+) {
+  const snapshot = await findVisibleSnapshot(prisma, viewerId, snapshotId, demo);
+  if (snapshot.status !== 'READY') {
+    throw new AppError(409, 'This snapshot is still being indexed.');
+  }
+  const file = await prisma.file.findUnique({
+    where: { snapshotId_path: { snapshotId, path } },
+    select: { id: true },
+  });
+  if (!file) throw new AppError(404, 'File not found in this snapshot');
+  const symbol = (
+    await prisma.symbol.findMany({
+      where: { fileId: file.id, startLine: { lte: line }, endLine: { gte: line } },
+      select: {
+        id: true,
+        fileId: true,
+        qualifiedName: true,
+        kind: true,
+        startLine: true,
+        endLine: true,
+      },
+    })
+  ).sort((a, b) => a.endLine - a.startLine - (b.endLine - b.startLine))[0];
+  return { file, symbol };
 }

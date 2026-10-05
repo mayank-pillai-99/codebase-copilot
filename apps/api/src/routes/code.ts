@@ -28,4 +28,9 @@ export const codeRoutes: FastifyPluginAsync<CodeRouteOptions> = async (app, { co
     const { path, line } = referencesQuery.parse(request.query);
     return code.getReferences(viewerId(request), request.params.id, path, line);
   });
+
+  app.get<{ Params: { id: string } }>('/api/snapshots/:id/impact', async (request) => {
+    const { path, line } = referencesQuery.parse(request.query);
+    return code.getImpact(viewerId(request), request.params.id, path, line);
+  });
 };
