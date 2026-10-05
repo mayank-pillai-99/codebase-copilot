@@ -82,6 +82,25 @@ describe.runIf(RUN_INTEGRATION === '1' && DATABASE_URL)('repository service (int
     expect((await service.listRepositories(alice))[0]?.latestSnapshot?.id).toBe(first.id);
   });
 
+  it('limits new indexing per user per day, but not re-opening a queued commit', async () => {
+    let used = 0;
+    const service = createRepositoryService({
+      prisma,
+      github: github(),
+      queue: { enqueue: vi.fn(async () => undefined), close: async () => undefined },
+      enqueueTimeoutMs: 100,
+      dailyIndexing: { quota: { consume: async () => ++used <= 1 }, limit: 1 },
+    });
+    const user = await newUser();
+    const first = `Quota-${randomUUID().slice(0, 6)}`;
+    await service.addRepository(user, `${owner}/${first}`);
+    await service.addRepository(user, `${owner}/${first}`);
+    expect(used).toBe(1);
+    await expect(
+      service.addRepository(user, `${owner}/Quota-${randomUUID().slice(0, 6)}`),
+    ).rejects.toMatchObject({ statusCode: 429 });
+  });
+
   it('uses the ref from /tree URLs', async () => {
     const resolveCommit = vi.fn(async () => SHA);
     const { service } = setup(github({ resolveCommit }));

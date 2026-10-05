@@ -9,6 +9,7 @@ import {
 import type { GitHubClient } from '../github/client';
 import { AppError } from '../lib/errors';
 import type { PrismaClient } from '../lib/prisma';
+import type { DailyQuota } from '../lib/quota';
 import type { IndexingQueue } from '../queue/indexing-queue';
 import {
   demoRepositoryFilter,
@@ -50,8 +51,10 @@ export function createRepositoryService(deps: {
   /** How long to wait for Redis before telling the user to try again. */
   enqueueTimeoutMs?: number;
   demo?: DemoRepositories;
+  /** New indexing jobs per user per day, protecting the free database; unlimited when omitted. */
+  dailyIndexing?: { quota: DailyQuota; limit: number };
 }): RepositoryService {
-  const { prisma, github, queue, enqueueTimeoutMs = 5_000, demo = [] } = deps;
+  const { prisma, github, queue, enqueueTimeoutMs = 5_000, demo = [], dailyIndexing } = deps;
   const findVisible = (viewerId: string | null, snapshotId: string) =>
     findVisibleSnapshot(prisma, viewerId, snapshotId, demo);
 
@@ -86,6 +89,23 @@ export function createRepositoryService(deps: {
       }
       const ref = parsed.ref ?? meta.defaultBranch;
       const commitSha = await github.resolveCommit(meta.owner, meta.name, ref);
+
+      // Only work that indexes something counts: a new commit, or a retry of a failed one.
+      if (dailyIndexing) {
+        const existing = await prisma.snapshot.findFirst({
+          where: { commitSha, repository: { owner: meta.owner, name: meta.name } },
+          select: { status: true },
+        });
+        if (
+          (!existing || existing.status === 'FAILED') &&
+          !(await dailyIndexing.quota.consume(userId))
+        ) {
+          throw new AppError(
+            429,
+            `You can index up to ${dailyIndexing.limit} new commits a day. Try again tomorrow.`,
+          );
+        }
+      }
 
       const repository = await prisma.repository.upsert({
         where: { owner_name: { owner: meta.owner, name: meta.name } },

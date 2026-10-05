@@ -65,6 +65,10 @@ async function main(): Promise<void> {
     github: createGitHubClient({ token: env.GITHUB_TOKEN }),
     queue,
     demo,
+    dailyIndexing: {
+      quota: createDailyQuota(redis, 'indexing', env.INDEX_DAILY_LIMIT),
+      limit: env.INDEX_DAILY_LIMIT,
+    },
   });
   const architecture = createArchitectureService(prisma, demo);
   const app = await buildApp({
