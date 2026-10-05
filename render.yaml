@@ -19,10 +19,11 @@ services:
       # Free hosting has no background worker service, so the API runs the indexing worker.
       - key: RUN_WORKER_IN_PROCESS
         value: 'true'
-      # Trust only Render's own proxy, so callers can't spoof their IP. Visitors' IPs
-      # arrive from the web server signed with PROXY_SECRET (docs/security.md).
+      # Trust Render's two proxy hops (its CDN edge, then its load balancer) and no more,
+      # so callers can't spoof their IP. Visitors' IPs arrive from the web server signed
+      # with PROXY_SECRET (docs/security.md).
       - key: TRUST_PROXY
-        value: '1'
+        value: '2'
       - key: JWT_SECRET
         generateValue: true
       # The rest are secrets or deployment-specific: Render asks for them on first deploy.
