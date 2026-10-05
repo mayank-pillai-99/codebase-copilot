@@ -443,6 +443,7 @@ Built so far (✓) and planned. "public" means readable without a session for de
 ✓ GET    /api/snapshots/:id/files              file list                          (public for demos)
 ✓ GET    /api/snapshots/:id/file?path=         file content + symbol outline      (public for demos)
 ✓ GET    /api/snapshots/:id/references?path=&line=  callers/callees of the symbol at a line (public for demos)
+✓ GET    /api/snapshots/:id/impact?path=&line=      dependents, routes and tests reached by walking calls backwards (public for demos)
 ✓ POST   /api/snapshots/:id/chat               { message, sessionId? } → SSE      (public for demos)
 ✓ GET    /api/snapshots/:id/chat/sessions      the user's conversations
 ✓ GET    /api/chat/sessions/:sessionId         messages + validated citations
@@ -477,6 +478,7 @@ Pages:
 /repos/[snapshotId]       onboarding guide (default tab) + index statistics
    /architecture          interactive architecture map
    /insights              codebase health: hotspots, test reach, import cycles (no AI)
+   /impact?path=&line=    change impact: callers, routes with call chains, tests that reach it (no AI)
    /routes?route=<id>     route list + request tracing
    /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors, references panel)
    ⌘K                     command palette on every repository page: fuzzy file names + full-text code search

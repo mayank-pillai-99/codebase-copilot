@@ -42,6 +42,12 @@ A tab of facts computed from the code graph, with no AI: the most-called functio
 
 ![Insights for the RealWorld Express API](docs/images/insights.png)
 
+### Change impact: what could break?
+
+Pick a function and see what depends on it, found by walking the call graph backwards: every caller, direct or indirect, grouped by file; the HTTP routes that reach it, each with a shortest call chain linked line by line; and the test files that exercise it, so you know what to run (or that nothing checks it). Open it from the References panel or the Impact tab. No AI.
+
+![Change impact for profileMapper: 5 routes, 10 callers, 3 test files](docs/images/impact.png)
+
 ### Search and navigate like an IDE
 
 Press <kbd>⌘K</kbd> on any repository page to search file names (fuzzy, instant) and code (full-text, as you type) with previews. Searching an identifier lands on its definition first. In the code viewer, a References panel shows who calls the selected function and what it calls, including inline route handlers named by their route.
@@ -144,7 +150,7 @@ docs/             specification, ADRs, deployment guide
 
 ## Status
 
-Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, insights, request tracing and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
+Built so far: ingestion and parsing, hybrid search, grounded chat, the code viewer, the onboarding guide, the architecture map, insights, change impact, request tracing, ⌘K search and a free-tier deployment. See the [milestones](docs/SPEC.md#21-milestones).
 
 ## Documentation
 
