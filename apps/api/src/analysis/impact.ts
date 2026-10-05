@@ -36,8 +36,8 @@ export interface ImpactInput {
 
 type ImpactResult = Omit<ImpactResponse, 'symbol'>;
 
-export const MAX_DEPENDENTS = 200;
-export const MAX_ROUTES = 100;
+const MAX_DEPENDENTS = 200;
+const MAX_ROUTES = 100;
 
 export function computeImpact(input: ImpactInput): ImpactResult {
   const byId = new Map(input.symbols.map((s) => [s.id, s]));

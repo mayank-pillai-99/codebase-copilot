@@ -81,7 +81,7 @@ const HTTP_CLIENTS = new Set([
  * accepted, but the path must be a static string starting with "/" and the last
  * argument must look like a handler.
  */
-export function detectExpressStyleRoutes(root: Node, symbols: ParsedSymbol[]): ParsedRoute[] {
+function detectExpressStyleRoutes(root: Node, symbols: ParsedSymbol[]): ParsedRoute[] {
   const routes: ParsedRoute[] = [];
 
   for (const call of descendants(root, 'call_expression')) {
@@ -177,7 +177,7 @@ const NEXT_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', '
  * Next.js App Router `app/**\/route.ts` (one route per exported HTTP-method function)
  * and Pages Router `pages/api/**` (default export handles every method).
  */
-export function detectNextRoutes(filePath: string, symbols: ParsedSymbol[]): ParsedRoute[] {
+function detectNextRoutes(filePath: string, symbols: ParsedSymbol[]): ParsedRoute[] {
   const appMatch = filePath.match(/(?:^|\/)app\/((?:.+\/)?)route\.[cm]?[jt]sx?$/);
   if (appMatch) {
     const urlPath = toUrlPath(appMatch[1] ?? '');

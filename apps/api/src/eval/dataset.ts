@@ -9,7 +9,7 @@ import { z } from 'zod';
  * files that answer it).
  */
 
-export const QUESTION_TYPES = ['conceptual', 'locational', 'flow', 'vocabulary'] as const;
+const QUESTION_TYPES = ['conceptual', 'locational', 'flow', 'vocabulary'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 const repoName = z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name');
@@ -45,7 +45,7 @@ const manifestSchema = z.object({
     .optional(),
 });
 
-export const questionSchema = z.object({
+const questionSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   repo: repoName,
   type: z.enum(QUESTION_TYPES),

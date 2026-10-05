@@ -3,7 +3,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { IndexingError, type Indexer } from '../indexing/indexer';
 import type { Redis } from '../lib/redis';
 
-export const INDEXING_QUEUE = 'indexing';
+const INDEXING_QUEUE = 'indexing';
 const ATTEMPTS = 3;
 
 interface IndexingJob {

@@ -48,7 +48,7 @@ export function scoreQuestion(ranked: readonly string[], gold: readonly string[]
   };
 }
 
-export function mean(values: readonly number[]): number {
+function mean(values: readonly number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
 

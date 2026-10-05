@@ -26,8 +26,8 @@ export interface MapEdge {
 export const NODE_WIDTH = 190;
 export const NODE_HEIGHT = 56;
 
-export const componentNodeId = (id: string) => `component:${id}`;
-export const integrationNodeId = (name: string) => `integration:${name}`;
+const componentNodeId = (id: string) => `component:${id}`;
+const integrationNodeId = (name: string) => `integration:${name}`;
 export const DATA_NODE_ID = 'data-model';
 
 /** Last two path segments keep labels short ("routes/auth" for src/app/routes/auth). */

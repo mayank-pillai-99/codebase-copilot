@@ -17,7 +17,7 @@ export interface GeminiChatFields extends BaseChatModelParams {
 }
 
 /** Carries the HTTP status so callers can tell overload (503) from rate limits (429). */
-export class GeminiRequestError extends Error {
+class GeminiRequestError extends Error {
   constructor(
     public readonly status: number,
     message: string,
