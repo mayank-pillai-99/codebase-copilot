@@ -42,8 +42,10 @@ export default async function CodePage(props: PageProps<'/repos/[snapshotId]/cod
     : null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_18rem]">
-      <aside className="min-w-0">
+    // Columns follow the width left for the viewer (container queries on the workspace's
+    // main area), so the references drop under the code when the chat panel is open.
+    <div className="grid items-start gap-4 @3xl:grid-cols-[15rem_minmax(0,1fr)] @6xl:grid-cols-[15rem_minmax(0,1fr)_18rem]">
+      <aside className="min-w-0 @3xl:sticky @3xl:top-4">
         <FileTree files={files} snapshotId={snapshotId} currentPath={path} />
       </aside>
       {file?.ok && lines ? (
@@ -61,7 +63,7 @@ export default async function CodePage(props: PageProps<'/repos/[snapshotId]/cod
         <Notice>{file && !file.ok ? file.error : 'Select a file to view it.'}</Notice>
       )}
       {file?.ok && file.data.file.kind === 'CODE' && (
-        <div className="md:col-start-2 xl:col-start-auto">
+        <div className="min-w-0 @3xl:col-start-2 @6xl:sticky @6xl:top-4 @6xl:col-start-auto">
           <ReferencesPanel
             snapshotId={snapshotId}
             path={file.data.file.path}

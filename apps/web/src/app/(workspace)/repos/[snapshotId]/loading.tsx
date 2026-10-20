@@ -2,7 +2,7 @@
 export default function TabLoading() {
   return (
     <div role="status" aria-label="Loading" className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 @2xl:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <div key={i} className="card flex flex-col gap-3 p-4">
             <div className="skeleton h-3 w-20" />

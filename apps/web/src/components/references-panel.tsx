@@ -43,7 +43,7 @@ export function ReferencesPanel({
   }, [snapshotId, path, line]);
 
   return (
-    <aside className="card flex min-w-0 flex-col gap-4 p-4 text-sm xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
+    <aside className="card flex min-w-0 flex-col gap-4 p-4 text-sm @6xl:max-h-[calc(100dvh-6.5rem)] @6xl:overflow-y-auto">
       <div>
         <h2 className="font-semibold tracking-tight">References</h2>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">

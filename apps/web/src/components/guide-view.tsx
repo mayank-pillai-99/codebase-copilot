@@ -72,7 +72,7 @@ export function GuideView({ snapshotId, initial }: { snapshotId: string; initial
 
       {stackGroups.length > 0 && (
         <Section title="Tech stack" hint="From package.json and config files" delay={60}>
-          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-x-6 gap-y-3 @2xl:grid-cols-2 @5xl:grid-cols-3">
             {stackGroups.map(([category, items]) => (
               <div key={category} className="flex flex-col gap-1.5">
                 <dt className="font-mono text-[11px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
@@ -96,7 +96,7 @@ export function GuideView({ snapshotId, initial }: { snapshotId: string; initial
         </Section>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 @5xl:grid-cols-2">
         <Section
           title="Start reading here"
           hint="Entry points, the most-imported files, and where routes live"
@@ -187,7 +187,7 @@ export function GuideView({ snapshotId, initial }: { snapshotId: string; initial
         }
         delay={240}
       >
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid gap-3 @2xl:grid-cols-2 @5xl:grid-cols-4">
           {guide.components.map((c) => (
             <li
               key={c.id}
@@ -211,7 +211,7 @@ export function GuideView({ snapshotId, initial }: { snapshotId: string; initial
         </ul>
       </Section>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 @3xl:grid-cols-3">
         <Section title="Data model" delay={300}>
           {guide.dataModels.length === 0 ? (
             <Empty>No schema or ORM models found.</Empty>

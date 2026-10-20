@@ -205,7 +205,7 @@ function StatsGrid({ stats }: { stats: SnapshotStats }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-semibold tracking-tight">What was indexed</h2>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
         {items.map(([label, value, suffix, detail], index) => (
           <div
             key={label}

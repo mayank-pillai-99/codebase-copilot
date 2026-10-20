@@ -169,14 +169,14 @@ export function ArchitectureMap({
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid gap-4 @5xl:grid-cols-[minmax(0,1fr)_20rem]">
         <MapList
           nodes={layout.nodes}
           selectedId={selectedNodeId}
           onSelect={select}
           className="md:hidden"
         />
-        <div className="hidden h-[28rem] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 md:block lg:h-[36rem] dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="hidden h-[28rem] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 md:block md:h-[max(28rem,calc(100dvh-12rem))] dark:border-zinc-800 dark:bg-zinc-950">
           {!wide ? null : layout.nodes.length === 0 ? (
             <p className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
               No application code to map. Try showing tests, examples and tooling.

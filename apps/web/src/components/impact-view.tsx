@@ -64,7 +64,7 @@ export function ImpactView({ snapshotId, impact }: { snapshotId: string; impact:
         </p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 @5xl:grid-cols-4">
         <Stat label="Routes that reach it" value={impact.routes.length} delay={0} />
         <Stat label="Callers, direct and indirect" value={impact.dependents.length} delay={60} />
         <Stat label="Files affected" value={files} delay={120} />
@@ -140,7 +140,7 @@ export function ImpactView({ snapshotId, impact }: { snapshotId: string; impact:
         )}
       </Section>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid gap-6 @5xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Section
           title="Code that depends on it"
           hint="Callers, their callers and so on, grouped by file, nearest first"
@@ -246,7 +246,7 @@ export function ImpactStart({
         {mostCalled.length === 0 ? (
           <Empty>No resolved calls between functions in this repository.</Empty>
         ) : (
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 @2xl:grid-cols-2">
             {mostCalled.map((s) => (
               <li key={`${s.path}:${s.startLine}`} className="min-w-0">
                 <Link

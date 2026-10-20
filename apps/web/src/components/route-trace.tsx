@@ -77,7 +77,7 @@ export function RouteTrace({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid gap-4 @5xl:grid-cols-[20rem_minmax(0,1fr)]">
       <nav aria-label="Routes" className="flex min-w-0 flex-col gap-3">
         <RouteList routes={app} selected={selected} onSelect={select} />
         {supporting.length > 0 && (

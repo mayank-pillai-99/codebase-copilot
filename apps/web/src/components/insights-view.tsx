@@ -29,7 +29,7 @@ export function InsightsView({ snapshotId, insights }: { snapshotId: string; ins
         Rankings cover application code, not tests or examples.
       </p>
 
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 @5xl:grid-cols-4">
         <Stat label="Riskiest file to change" delay={0}>
           {riskiest ? (
             <>
@@ -91,7 +91,7 @@ export function InsightsView({ snapshotId, insights }: { snapshotId: string; ins
         </Stat>
       </dl>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 @5xl:grid-cols-3">
         <Section
           title="Most-called functions"
           hint="Resolved calls from application code"
@@ -136,7 +136,7 @@ export function InsightsView({ snapshotId, insights }: { snapshotId: string; ins
         </Section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 @5xl:grid-cols-2">
         <Section
           title="Important files without tests"
           hint="Many files depend on them and no test imports them, so a change here goes unchecked"
