@@ -50,6 +50,30 @@ test.describe('demo repository', () => {
     await expect(references.getByText('PaymentService.create')).toBeVisible();
   });
 
+  test('keeps the chat panel open while moving between sections', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/repos/${snapshot}`);
+    // The workspace has its own frame, not the marketing header and footer.
+    await expect(page.getByRole('link', { name: 'Features' })).toHaveCount(0);
+    await expect(page.locator('footer')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Ask', exact: true, expanded: false }).click();
+    const chat = page.getByRole('complementary', { name: 'Chat' });
+    await chat.getByLabel('Your question').fill('Where are payments created?');
+    await page
+      .getByRole('navigation', { name: 'Repository sections' })
+      .getByRole('link', { name: 'Code' })
+      .click();
+    await expect(page).toHaveURL(/\/code/);
+    await expect(chat.getByLabel('Your question')).toHaveValue('Where are payments created?');
+
+    // Still open after a reload, in this tab.
+    await page.reload();
+    await expect(chat).toBeVisible();
+    await chat.getByRole('button', { name: 'Close chat' }).click();
+    await expect(chat).toHaveCount(0);
+  });
+
   test('shows what a change can affect', async ({ page }) => {
     await page.goto(`/repos/${snapshot}/code?path=src/services/payment.service.ts&lines=3`);
     await page.getByRole('link', { name: /What depends on this/ }).click();

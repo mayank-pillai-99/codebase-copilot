@@ -6,12 +6,15 @@ import { defineConfig, devices } from '@playwright/test';
  * with AI and GitHub access switched off, so runs are offline and deterministic.
  */
 const CI = Boolean(process.env.CI);
+// Set E2E_WEB_PORT when something else already listens on 3000.
+const WEB_PORT = process.env.E2E_WEB_PORT ?? '3000';
+const WEB_URL = `http://localhost:${WEB_PORT}`;
 
 const apiEnv = {
   NODE_ENV: 'test',
   LOG_LEVEL: 'warn',
   PORT: '4000',
-  WEB_ORIGIN: 'http://localhost:3000',
+  WEB_ORIGIN: WEB_URL,
   JWT_SECRET: 'e2e-secret-that-is-at-least-32-characters-long',
   DEMO_REPOSITORIES: 'e2e/payments-api',
   RUN_WORKER_IN_PROCESS: 'false',
@@ -28,7 +31,7 @@ export default defineConfig({
   workers: 1,
   reporter: CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: WEB_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -44,8 +47,8 @@ export default defineConfig({
     },
     {
       command: 'npm run start --workspace @codebase-copilot/web',
-      url: 'http://localhost:3000',
-      env: { PORT: '3000', API_URL: 'http://localhost:4000', PROXY_SECRET: '' },
+      url: WEB_URL,
+      env: { PORT: WEB_PORT, API_URL: 'http://localhost:4000', PROXY_SECRET: '' },
       reuseExistingServer: false,
       timeout: 120_000,
     },
