@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 import { THEME_SCRIPT } from '@/lib/theme';
 import './globals.css';
 
@@ -30,11 +28,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* A constant script, not user content: applies the theme before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="flex min-h-screen flex-col">
-        <SiteHeader />
-        <div className="flex-1">{children}</div>
-        <SiteFooter />
-      </body>
+      {/* Public pages add the site header and footer ((site)/layout.tsx); repository
+          pages have their own workspace frame ((workspace)/repos/[snapshotId]/layout.tsx). */}
+      <body className="flex min-h-screen flex-col">{children}</body>
     </html>
   );
 }
