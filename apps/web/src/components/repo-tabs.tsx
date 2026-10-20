@@ -3,22 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLayoutEffect, useRef, useState } from 'react';
+import { activeSection, repoSections } from '@/lib/repo-sections';
 
+/** Section tabs for phones; wider screens use the workspace sidebar instead. */
 export function RepoTabs({ snapshotId }: { snapshotId: string }) {
   const pathname = usePathname();
-  const base = `/repos/${snapshotId}`;
-  const tabs = [
-    { href: base, label: 'Guide' },
-    { href: `${base}/architecture`, label: 'Architecture' },
-    { href: `${base}/insights`, label: 'Insights' },
-    { href: `${base}/impact`, label: 'Impact' },
-    { href: `${base}/routes`, label: 'Routes' },
-    { href: `${base}/code`, label: 'Code' },
-    { href: `${base}/chat`, label: 'Chat' },
-  ];
-  const activeIndex = tabs.findIndex((tab) =>
-    tab.href === base ? pathname === base : pathname.startsWith(tab.href),
-  );
+  const tabs = repoSections(snapshotId);
+  const current = activeSection(snapshotId, pathname);
+  const activeIndex = tabs.findIndex((tab) => tab.id === current);
 
   // One underline that slides to the active tab.
   const refs = useRef<(HTMLAnchorElement | null)[]>([]);

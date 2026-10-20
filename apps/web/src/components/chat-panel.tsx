@@ -32,16 +32,30 @@ const STARTERS = [
   'How is data stored and accessed?',
 ];
 
+/**
+ * A conversation about one snapshot. `page` is the full chat page (conversation list on
+ * the left, the URL follows the conversation); `dock` is the workspace's side panel,
+ * where the parent owns which conversation is shown.
+ */
 export function ChatPanel({
   snapshotId,
   sessions: initialSessions,
   initialSessionId,
   initialMessages,
+  variant = 'page',
+  onSelectSession,
+  onSessionCreated,
+  onClose,
 }: {
   snapshotId: string;
   sessions: ChatSessionSummary[];
   initialSessionId: string | null;
   initialMessages: ChatMessageDto[];
+  variant?: 'page' | 'dock';
+  /** Dock only: switch to a saved conversation, or null for a new one. */
+  onSelectSession?: (sessionId: string | null) => void;
+  onSessionCreated?: (session: ChatSessionSummary) => void;
+  onClose?: () => void;
 }) {
   const [sessionId, setSessionId] = useState(initialSessionId);
   const [sessions, setSessions] = useState(initialSessions);
@@ -53,9 +67,13 @@ export function ChatPanel({
   const [formError, setFormError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // The dock scrolls its own message list; scrollIntoView would also nudge the workspace.
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' });
+    const scroller = scrollerRef.current;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    else bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -127,22 +145,23 @@ export function ChatPanel({
           if (!parsed.success) continue;
           const event = parsed.data;
           if (event.type === 'session' && event.sessionId !== sessionId) {
-            setSessionId(event.sessionId);
-            setSessions((all) => [
-              {
-                id: event.sessionId,
-                title: text.slice(0, 80),
-                updatedAt: new Date().toISOString(),
-              },
-              ...all,
-            ]);
+            const created = {
+              id: event.sessionId,
+              title: text.slice(0, 80),
+              updatedAt: new Date().toISOString(),
+            };
+            setSessionId(created.id);
+            setSessions((all) => [created, ...all]);
+            onSessionCreated?.(created);
             // Only the URL changes. router.replace() would re-render the server page, remount
             // this component and abort the answer that is still streaming.
-            window.history.replaceState(
-              null,
-              '',
-              `/repos/${snapshotId}/chat?session=${event.sessionId}`,
-            );
+            if (variant === 'page') {
+              window.history.replaceState(
+                null,
+                '',
+                `/repos/${snapshotId}/chat?session=${event.sessionId}`,
+              );
+            }
           } else if (event.type === 'sources') {
             updateLast((m) => ({ ...m, sources: event.sources }));
           } else if (event.type === 'token') {
@@ -188,6 +207,146 @@ export function ChatPanel({
     }
   }
 
+  const conversation =
+    messages.length === 0 ? (
+      <div className="card dot-grid flex flex-col gap-4 p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:ring-brand-800">
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden
+              className="size-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 5h16v10H9l-5 4z" />
+              <path d="M8 9h8M8 12h5" />
+            </svg>
+          </span>
+          <div>
+            <p className="font-medium">Ask anything about this codebase</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Answers cite the exact files and lines they come from. Click a citation to open the
+              code.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {STARTERS.map((q, i) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => void send(q)}
+              style={{ animationDelay: `${120 + i * 70}ms` }}
+              className="animate-fade-up rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-left text-xs transition hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-800 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-brand-600 dark:hover:text-brand-300"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <ol className="flex flex-col gap-5" aria-live="polite">
+        {messages.map((m) => (
+          <li key={m.id} className="animate-fade-up">
+            {m.role === 'user' ? (
+              <UserBubble text={m.content} />
+            ) : (
+              <Answer m={m} snapshotId={snapshotId} />
+            )}
+          </li>
+        ))}
+      </ol>
+    );
+
+  const composer = (className: string) => (
+    <form onSubmit={onSubmit} className={`flex flex-col gap-2 ${className}`}>
+      {formError && (
+        <p
+          role="alert"
+          className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-300"
+        >
+          {formError}
+        </p>
+      )}
+      <div className="flex items-end gap-2 rounded-xl border border-zinc-300 bg-white p-2 shadow-lg shadow-zinc-900/5 transition focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-500/15 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/20">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          rows={2}
+          maxLength={2000}
+          placeholder="How does authentication work?"
+          aria-label="Your question"
+          className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
+        />
+        {busy ? (
+          <button
+            type="button"
+            onClick={() => abortRef.current?.abort()}
+            className="btn-secondary px-3 py-1.5"
+          >
+            <span aria-hidden className="size-2.5 rounded-[2px] bg-current" />
+            Stop
+          </button>
+        ) : (
+          <button type="submit" disabled={!input.trim()} className="btn-primary px-3 py-1.5">
+            Ask
+            <svg
+              viewBox="0 0 16 16"
+              aria-hidden
+              className="size-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M8 13V3M4 7l4-4 4 4" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </form>
+  );
+
+  if (variant === 'dock') {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex items-center gap-1 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Conversation</span>
+            <select
+              value={sessionId ?? ''}
+              onChange={(e) => onSelectSession?.(e.target.value || null)}
+              className="w-full truncate rounded-md bg-transparent py-1 pr-1 text-sm font-medium outline-none hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            >
+              <option value="">New conversation</option>
+              {sessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <IconButton label="New conversation" onClick={() => onSelectSession?.(null)}>
+            <path d="M12 5v14M5 12h14" />
+          </IconButton>
+          <IconButton label="Close chat" onClick={() => onClose?.()}>
+            <path d="M6 6l12 12M18 6 6 18" />
+          </IconButton>
+        </div>
+        <div ref={scrollerRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+          {conversation}
+        </div>
+        {composer('border-t border-zinc-200 p-3 dark:border-zinc-800')}
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-[14rem_minmax(0,1fr)]">
       <aside className="flex flex-col gap-2">
@@ -227,111 +386,43 @@ export function ChatPanel({
       </aside>
 
       <section className="flex min-w-0 flex-col gap-4">
-        {messages.length === 0 ? (
-          <div className="card dot-grid flex flex-col gap-4 p-6">
-            <div className="flex items-start gap-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:ring-brand-800">
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.6}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 5h16v10H9l-5 4z" />
-                  <path d="M8 9h8M8 12h5" />
-                </svg>
-              </span>
-              <div>
-                <p className="font-medium">Ask anything about this codebase</p>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Answers cite the exact files and lines they come from. Click a citation to open
-                  the code.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {STARTERS.map((q, i) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => void send(q)}
-                  style={{ animationDelay: `${120 + i * 70}ms` }}
-                  className="animate-fade-up rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-left text-xs transition hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-800 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-brand-600 dark:hover:text-brand-300"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <ol className="flex flex-col gap-5" aria-live="polite">
-            {messages.map((m) => (
-              <li key={m.id} className="animate-fade-up">
-                {m.role === 'user' ? (
-                  <UserBubble text={m.content} />
-                ) : (
-                  <Answer m={m} snapshotId={snapshotId} />
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
+        {conversation}
         <div ref={bottomRef} />
-
-        <form onSubmit={onSubmit} className="sticky bottom-4 flex flex-col gap-2">
-          {formError && (
-            <p
-              role="alert"
-              className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-300"
-            >
-              {formError}
-            </p>
-          )}
-          <div className="flex items-end gap-2 rounded-xl border border-zinc-300 bg-white p-2 shadow-lg shadow-zinc-900/5 transition focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-500/15 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/20">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              rows={2}
-              maxLength={2000}
-              placeholder="How does authentication work?"
-              aria-label="Your question"
-              className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
-            />
-            {busy ? (
-              <button
-                type="button"
-                onClick={() => abortRef.current?.abort()}
-                className="btn-secondary px-3 py-1.5"
-              >
-                <span aria-hidden className="size-2.5 rounded-[2px] bg-current" />
-                Stop
-              </button>
-            ) : (
-              <button type="submit" disabled={!input.trim()} className="btn-primary px-3 py-1.5">
-                Ask
-                <svg
-                  viewBox="0 0 16 16"
-                  aria-hidden
-                  className="size-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M8 13V3M4 7l4-4 4 4" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </form>
+        {composer('sticky bottom-4')}
       </section>
     </div>
+  );
+}
+
+function IconButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden
+        className="size-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      >
+        {children}
+      </svg>
+    </button>
   );
 }
 

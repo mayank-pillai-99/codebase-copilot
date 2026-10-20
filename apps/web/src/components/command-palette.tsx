@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { codeHref } from '@/lib/format';
 import { matchFiles } from '@/lib/search';
+import { useChatDock } from './workspace/chat-dock';
 
 type Item =
   { type: 'file'; key: string; path: string } | { type: 'code'; key: string; result: SearchResult };
@@ -22,6 +23,7 @@ const DEBOUNCE_MS = 220;
  */
 export function CommandPalette({ snapshotId }: { snapshotId: string }) {
   const router = useRouter();
+  const chat = useChatDock();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [files, setFiles] = useState<FileEntry[] | null>(null);
@@ -171,11 +173,12 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
         type="button"
         onClick={show}
         aria-haspopup="dialog"
-        className="group mb-1.5 flex shrink-0 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-500 shadow-sm transition hover:border-brand-300 hover:text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-brand-700 dark:hover:text-zinc-200"
+        aria-label="Search code"
+        className="group flex shrink-0 items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-500 transition hover:border-brand-300 hover:text-zinc-800 lg:w-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-brand-700 dark:hover:text-zinc-200"
       >
         <SearchIcon />
-        <span className="hidden sm:inline">Search code</span>
-        <kbd className="hidden rounded border border-zinc-200 px-1 font-mono text-[10px] text-zinc-400 sm:inline dark:border-zinc-700">
+        <span className="hidden lg:inline">Search code…</span>
+        <kbd className="ml-auto hidden rounded border border-zinc-200 px-1 font-mono text-[10px] text-zinc-400 lg:inline dark:border-zinc-700">
           {shortcut}
         </kbd>
       </button>
@@ -301,7 +304,21 @@ export function CommandPalette({ snapshotId }: { snapshotId: string }) {
               <span>
                 <Key>↵</Key> to open
               </span>
-              <span className="ml-auto">Keyword search · ask Chat for meaning</span>
+              <span className={`ml-auto ${chat.available ? 'md:hidden' : ''}`}>
+                Keyword search · ask Chat for meaning
+              </span>
+              {chat.available && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    chat.setOpen(true);
+                  }}
+                  className="ml-auto hidden font-medium text-brand-700 hover:underline md:inline dark:text-brand-400"
+                >
+                  Keyword search · ask Chat for meaning →
+                </button>
+              )}
             </div>
           </div>
         </div>
