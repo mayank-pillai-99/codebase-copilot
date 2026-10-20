@@ -37,6 +37,12 @@ function buildTree(files: FileEntry[]): Folder {
   return root;
 }
 
+function ancestors(path: string | null, into: Set<string>): Set<string> {
+  const parts = path?.split('/').slice(0, -1) ?? [];
+  parts.forEach((_, i) => into.add(parts.slice(0, i + 1).join('/')));
+  return into;
+}
+
 export function FileTree({
   files,
   snapshotId,
@@ -48,13 +54,14 @@ export function FileTree({
 }) {
   const tree = useMemo(() => buildTree(files), [files]);
   const [filter, setFilter] = useState('');
-  const [open, setOpen] = useState<Set<string>>(() => {
-    // Expand the folders leading to the current file.
-    const initial = new Set<string>();
-    const parts = currentPath?.split('/').slice(0, -1) ?? [];
-    parts.forEach((_, i) => initial.add(parts.slice(0, i + 1).join('/')));
-    return initial;
-  });
+  // Folders leading to the current file are expanded, also when the file changes without
+  // the tree remounting (a citation opened from the chat panel).
+  const [open, setOpen] = useState<Set<string>>(() => ancestors(currentPath, new Set()));
+  const [shownPath, setShownPath] = useState(currentPath);
+  if (shownPath !== currentPath) {
+    setShownPath(currentPath);
+    setOpen((current) => ancestors(currentPath, new Set(current)));
+  }
 
   const toggle = (path: string) =>
     setOpen((current) => {
