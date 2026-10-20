@@ -482,10 +482,12 @@ Pages:
    /routes?route=<id>     route list + request tracing
    /code?path=&lines=     file tree + code viewer (syntax highlighting, line anchors, references panel)
    ⌘K                     command palette on every repository page: fuzzy file names + full-text code search
-   /chat                  streamed chat with clickable citations
+   /chat                  streamed chat with clickable citations (also a docked panel on every repository page)
    /issues                issue locator (Milestone 8)
 /eval                     public evaluation results
 ```
+
+Repository pages share a workspace frame (ADR 0008): a top bar with the repository, commit, ⌘K search, chat toggle and account; a section sidebar; and a chat panel docked on the right that stays open while moving between sections. On phones, sections are tabs and Chat is the `/chat` page.
 
 UX requirements:
 

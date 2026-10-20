@@ -20,9 +20,9 @@ Open a repository and start with a guide: a short summary (the one AI-written pa
 
 ### Answers with citations you can check
 
-Ask "how does authentication work?" and get a streamed answer built only from retrieved code. Every `[n]` marker is validated on the server against the sources the model was given, and opens the cited lines at the indexed commit. Invented citations are removed and the answer is flagged.
+Ask "how does authentication work?" and get a streamed answer built only from retrieved code. Every `[n]` marker is validated on the server against the sources the model was given, and opens the cited lines at the indexed commit. Invented citations are removed and the answer is flagged. Chat docks beside every section of the workspace, so a citation opens the code next to the answer instead of replacing it.
 
-![A cited answer about authentication](docs/images/chat.png)
+![A cited answer about authentication docked beside the cited lines in the code viewer](docs/images/chat.png)
 
 ### Architecture map
 
