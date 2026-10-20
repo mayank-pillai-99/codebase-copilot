@@ -31,8 +31,8 @@ export function SiteFooter() {
             Codebase<span className="-ml-2 text-brand-600 dark:text-brand-400">Copilot</span>
           </Link>
           <p className="max-w-xs text-sm text-zinc-600 dark:text-zinc-400">
-            Answers about any TypeScript or JavaScript codebase, grounded in the code and checked
-            against it.
+            Onboarding guides and cited answers for TypeScript and JavaScript codebases, grounded in
+            the code and checked against it.
           </p>
         </div>
         {COLUMNS.map((column) => (

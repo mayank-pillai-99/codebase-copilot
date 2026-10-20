@@ -2,6 +2,7 @@ import { repositoryListResponseSchema } from '@codebase-copilot/shared';
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { HeroVisual } from '@/components/hero-visual';
+import { iconProps, SectionIcon } from '@/components/section-icon';
 import { ServerWaking } from '@/components/server-waking';
 import { SystemStatus } from '@/components/system-status';
 import { fetchHealth } from '@/lib/api';
@@ -70,9 +71,9 @@ export default async function HomePage() {
             className="animate-fade-up max-w-xl text-lg text-zinc-600 dark:text-zinc-400"
             style={delay(160)}
           >
-            Paste a GitHub URL. Codebase Copilot parses the repository into a map of its symbols,
-            imports, calls and HTTP routes, then answers questions with citations to the exact files
-            and lines they came from.
+            Paste a GitHub URL and start from an onboarding guide built from the parsed code. Then
+            map the architecture, trace requests, see what a change could break, and ask questions
+            with citations to the exact files and lines.
           </p>
           <div className="animate-fade-up flex flex-wrap gap-3" style={delay(240)}>
             <Link
@@ -90,7 +91,7 @@ export default async function HomePage() {
             className="animate-fade-up font-mono text-xs text-zinc-500 dark:text-zinc-500"
             style={delay(320)}
           >
-            tree-sitter parsing · hybrid search · citations checked on the server
+            tree-sitter parsing · call graphs · citations checked on the server
           </p>
         </div>
         <div className="animate-fade-up pb-10 lg:pb-0" style={delay(200)}>
@@ -99,20 +100,23 @@ export default async function HomePage() {
       </section>
 
       <section id="how-it-works" className="flex scroll-mt-24 flex-col gap-8">
-        <SectionTitle eyebrow="How it works" title="From a URL to answers you can check" />
+        <SectionTitle
+          eyebrow="How it works"
+          title="From a URL to a codebase you can find your way around"
+        />
         <ol className="grid gap-4 md:grid-cols-3">
           {[
             [
               'Parse',
-              'The repository is downloaded at one commit and parsed with tree-sitter: symbols, imports, calls and routes. Nothing from it is ever run.',
+              'The repository is downloaded at one commit and parsed with tree-sitter into symbols, imports, calls and HTTP routes. Nothing from it is installed or run.',
             ],
             [
-              'Map',
-              'Imports become an architecture map, calls become traceable request flows, and every function becomes a searchable, embedded chunk.',
+              'Analyze',
+              "Resolved imports and calls form a graph. The guide's facts, the architecture map, request traces, insights and change impact are all computed from it, without AI.",
             ],
             [
               'Ask',
-              'Questions are answered from retrieved code only. Every [n] citation is checked on the server and opens the exact lines.',
+              'Every function is embedded and indexed for full-text search. Answers use retrieved code only, and every [n] citation is checked on the server before it links to the lines.',
             ],
           ].map(([title, body], i) => (
             <li key={title} className="card flex flex-col gap-3 p-5">
@@ -127,33 +131,85 @@ export default async function HomePage() {
       </section>
 
       <section id="features" className="flex scroll-mt-24 flex-col gap-8">
-        <SectionTitle eyebrow="What you get" title="Four ways into an unfamiliar codebase" />
+        <SectionTitle
+          eyebrow="What you get"
+          title="Start with a guide, then go as deep as you need"
+        />
         <div className="grid gap-4 sm:grid-cols-2">
+          <Feature
+            href={tab('')}
+            title="Onboarding guide"
+            body="Every repository opens on a guide: facts from the code, each linked to the file that shows it, under a short summary that is the one AI-written part."
+            tags={[CODE_FACTS, AI_SUMMARY]}
+            icon={<SectionIcon id="guide" className="size-5" />}
+            wide
+          >
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {[
+                'Tech stack',
+                'Start reading here',
+                'Key request flows',
+                'Architecture at a glance',
+                'Data model',
+                'External services',
+                'Configuration',
+              ].map((part) => (
+                <li
+                  key={part}
+                  className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                >
+                  {part}
+                </li>
+              ))}
+            </ul>
+          </Feature>
+          <Feature
+            href={tab('/chat')}
+            title="Answers with citations"
+            body="Streamed answers built only from retrieved code. Each citation is checked on the server, and chat docks beside every section, so a citation opens the code next to the answer."
+            tags={[AI_WRITTEN]}
+            icon={<SectionIcon id="chat" className="size-5" />}
+          />
+          <Feature
+            href={tab('/code')}
+            title="Search and navigate like an IDE"
+            body="Press ⌘K to search file names and code as you type. Files open at the indexed commit beside a References panel: who calls a function and what it calls."
+            tags={[NO_AI]}
+            icon={<IconSearch />}
+          />
           <Feature
             href={tab('/architecture')}
             title="Architecture map"
-            body="Folders, the imports between them and the services they use, with the import lines behind every arrow."
-            icon={<IconMap />}
+            body="Folders, the imports between them and the external services they use, with the import lines behind every arrow."
+            tags={[NO_AI]}
+            icon={<SectionIcon id="architecture" className="size-5" />}
           />
           <Feature
             href={tab('/routes')}
             title="Request tracing"
-            body="Pick a route and follow its handler into the functions it calls, line by line."
-            icon={<IconTrace />}
+            body="Pick a route and follow its handler into the functions it calls, line by line. Calls that can't be resolved are shown as unresolved, not guessed."
+            tags={[NO_AI]}
+            icon={<SectionIcon id="routes" className="size-5" />}
           />
           <Feature
-            href={tab('/chat')}
-            title="Answers with citations"
-            body="Streamed answers grounded in retrieved code. Each citation links to the lines it came from."
-            icon={<IconChat />}
+            href={tab('/insights')}
+            title="Insights"
+            body="A health check from the code graph: the most-called and longest functions, the riskiest files to change, which tests to read, and import cycles."
+            tags={[NO_AI]}
+            icon={<SectionIcon id="insights" className="size-5" />}
           />
           <Feature
-            href={tab('/code')}
-            title="Code viewer"
-            body="Syntax-highlighted files at the indexed commit, with a symbol outline and linkable line ranges."
-            icon={<IconCode />}
+            href={tab('/impact')}
+            title="Change impact"
+            body="Pick a function and see what could break: every caller, the HTTP routes that reach it, each with its shortest call chain, and the tests that exercise it."
+            tags={[NO_AI]}
+            icon={<SectionIcon id="impact" className="size-5" />}
           />
         </div>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Only chat answers and the guide&apos;s one-paragraph summary are written by AI, and both
+          are labelled. Everything else is computed from the parsed code.
+        </p>
       </section>
 
       {!demo.ok && demo.unreachable ? (
@@ -178,7 +234,7 @@ export default async function HomePage() {
                       : 'Indexed'}
                   </span>
                   <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-700 dark:text-brand-400">
-                    Explore the map and chat
+                    Open the onboarding guide
                     <Arrow className="transition-transform duration-200 group-hover:translate-x-1" />
                   </span>
                 </Link>
@@ -204,27 +260,68 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
   );
 }
 
+interface FeatureTag {
+  label: string;
+  ai?: boolean;
+}
+
+const NO_AI: FeatureTag = { label: 'No AI' };
+const CODE_FACTS: FeatureTag = { label: 'Facts from the code' };
+const AI_SUMMARY: FeatureTag = { label: 'AI-written summary', ai: true };
+const AI_WRITTEN: FeatureTag = { label: 'AI-written', ai: true };
+
 function Feature({
   href,
   title,
   body,
+  tags,
   icon,
+  wide = false,
+  children,
 }: {
   href: string;
   title: string;
   body: string;
+  tags: FeatureTag[];
   icon: ReactNode;
+  wide?: boolean;
+  children?: ReactNode;
 }) {
   return (
-    <Link href={href} className="card card-hover group flex gap-4 p-5">
+    <Link
+      href={href}
+      className={`card card-hover group flex gap-4 p-5 ${wide ? 'sm:col-span-2' : ''}`}
+    >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700 transition-colors duration-200 group-hover:bg-brand-50 group-hover:text-brand-700 dark:bg-zinc-800 dark:text-zinc-300 dark:group-hover:bg-brand-950 dark:group-hover:text-brand-300">
         {icon}
       </span>
-      <span className="flex flex-col gap-1">
-        <span className="font-semibold">{title}</span>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-semibold">{title}</span>
+          {tags.map((tag) => (
+            <Tag key={tag.label} {...tag} />
+          ))}
+        </span>
         <span className="text-sm text-zinc-600 dark:text-zinc-400">{body}</span>
-      </span>
+        {children}
+      </div>
     </Link>
+  );
+}
+
+/** Says where a feature's content comes from; AI-written parts match the guide's label. */
+function Tag({ label, ai = false }: FeatureTag) {
+  return ai ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-800 ring-1 ring-violet-200 ring-inset dark:bg-violet-950 dark:text-violet-200 dark:ring-violet-900">
+      <svg viewBox="0 0 16 16" aria-hidden className="size-3 fill-current">
+        <path d="M8 1l1.6 4.4L14 7l-4.4 1.6L8 13l-1.6-4.4L2 7l4.4-1.6z" />
+      </svg>
+      {label}
+    </span>
+  ) : (
+    <span className="rounded-full px-2 py-0.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200 ring-inset dark:text-zinc-400 dark:ring-zinc-700">
+      {label}
+    </span>
   );
 }
 
@@ -243,48 +340,11 @@ function Arrow({ className = '' }: { className?: string }) {
   );
 }
 
-const iconProps = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.6,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
-  className: 'size-5',
-  'aria-hidden': true,
-};
-
-function IconMap() {
+function IconSearch() {
   return (
-    <svg {...iconProps}>
-      <rect x="3" y="3" width="7" height="5" rx="1.5" />
-      <rect x="14" y="3" width="7" height="5" rx="1.5" />
-      <rect x="8.5" y="16" width="7" height="5" rx="1.5" />
-      <path d="M6.5 8v3.5h11V8M12 11.5V16" />
-    </svg>
-  );
-}
-function IconTrace() {
-  return (
-    <svg {...iconProps}>
-      <path d="M4 5h6M7 5v14M7 12h6M13 12v7M13 19h7" />
-      <circle cx="4" cy="5" r="1" />
-      <circle cx="20" cy="19" r="1" />
-    </svg>
-  );
-}
-function IconChat() {
-  return (
-    <svg {...iconProps}>
-      <path d="M4 5h16v10H9l-5 4z" />
-      <path d="M8 9h8M8 12h5" />
-    </svg>
-  );
-}
-function IconCode() {
-  return (
-    <svg {...iconProps}>
-      <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" />
+    <svg {...iconProps} className="size-5">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.2-4.2" />
     </svg>
   );
 }
